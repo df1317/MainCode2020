@@ -1,7 +1,16 @@
 
 package frc.robot;
 
-//may be two sparks later
+//Notes section
+//may be two sparks later and/or spikes later on
+//the importer was giving me trouble so I manually changed the current language to java and the project year to 2020 in the wpilib_preferences.json
+//TO-DO: Add manual control to just about every aspect of the robot should something go wrong and also for debugging purposes
+//TO-DO: Make rough estimations for distance in auto by taking the circumferance of the wheel and the rpm
+//the circumference of the wheels is 18.849555921538 (diameter is 6) and the rpm is _____
+//TO-DO the gear should be switched to have more torque in auto at the cost of speed for increased accuracy
+
+
+
 //imports
 import com.ctre.phoenix.motorcontrol.ControlMode;
 //import com.ctre.phoenix.motorcontrol.can.VictorSPX;
@@ -47,7 +56,7 @@ public class Robot extends TimedRobot {
 	final Color kBlueTarget = ColorMatch.makeColor(0.143, 0.427, 0.429);
 	final Color kGreenTarget = ColorMatch.makeColor(0.197, 0.561, 0.240);
 	final Color kRedTarget = ColorMatch.makeColor(0.561, 0.232, 0.114);
-  final Color kYellowTarget = ColorMatch.makeColor(0.361, 0.524, 0.113);
+  	final Color kYellowTarget = ColorMatch.makeColor(0.361, 0.524, 0.113);
 	ColorMatch m_colorMatcher = new ColorMatch();
 	ColorMatchResult match;
 	Color currentColor;
@@ -100,30 +109,28 @@ public class Robot extends TimedRobot {
 		m_colorMatcher.addColorMatch(kYellowTarget);
 	}
 
-  //Autonomous starts here, beware all ye who dare to look
-  public void autonomousInit() {
-    autoTimer.start();
-    GearShift.set(DoubleSolenoid.Value.kForward);
-
-  }
-
-  public void autonomousPeriodic() {
-    double currentAutoTime = autoTimer.get();
-    //Cross the starting line
-    //if I really wanted to calculate the distance of the motor, then the circumference is 18.849555921538 and the rpm is {REDACTED}
-    if (currentAutoTime<3) {
-      GearShift.set(DoubleSolenoid.Value.kForward);
-      FRMotor.set(0.25);
-      BRMotor.set(0.25);
-      FLMotor.set(-0.25);
-      BLMotor.set(-0.25);
-    } else {
-      GearShift.set(DoubleSolenoid.Value.kReverse);
-      FRMotor.set(0);
-      BRMotor.set(0);
-      FLMotor.set(0);
-      BLMotor.set(0);
+  	//Autonomous starts here, beware all ye who dare to look
+  	public void autonomousInit() {
+    	autoTimer.start();
+    	GearShift.set(DoubleSolenoid.Value.kForward);
 	}
+
+  	public void autonomousPeriodic() {
+    	double currentAutoTime = autoTimer.get();
+    	//Cross the starting line
+    	if (currentAutoTime<3) {
+      		GearShift.set(DoubleSolenoid.Value.kForward);
+      		FRMotor.set(0.25);
+      		BRMotor.set(0.25);
+      		FLMotor.set(-0.25);
+      		BLMotor.set(-0.25);
+    	} else {
+      		GearShift.set(DoubleSolenoid.Value.kReverse);
+      		FRMotor.set(0);
+      		BRMotor.set(0);
+      		FLMotor.set(0);
+      		BLMotor.set(0);
+		}
 	
 	}
 
