@@ -9,8 +9,6 @@ package frc.robot;
 //the circumference of the wheels is 18.849555921538 (diameter is 6) and the rpm is _____
 //TO-DO the gear should be switched to have more torque in auto at the cost of speed for increased accuracy
 
-
-
 //imports
 import com.ctre.phoenix.motorcontrol.ControlMode;
 //import com.ctre.phoenix.motorcontrol.can.VictorSPX;
@@ -81,6 +79,7 @@ public class Robot extends TimedRobot {
 	boolean gearShift;
 	boolean resetButton1;
 	boolean resetButton2;
+	int POVgearswitch;
 
 	//Additional Values
 	double ColorMotorVal = 0.5;
@@ -140,6 +139,7 @@ public class Robot extends TimedRobot {
   	}
 
 	public void teleopPeriodic() {
+
 		//gyro
 		X = ahrs.getRoll();
 		Y = ahrs.getPitch();
@@ -160,7 +160,7 @@ public class Robot extends TimedRobot {
 		gearShift = joyR.getRawButton(1);
 		resetButton1 = joyE.getRawButton(7);
 		resetButton2 = joyE.getRawButton(8);
-
+		POVgearswitch = joyL.getPOV();
 		
 		//DriveTrain
 		FRMotor.set(RightVal);
@@ -200,7 +200,12 @@ public class Robot extends TimedRobot {
 			BeltMotor.set(-1);
 			SwifferMotor.set(-1);
 			System.out.println("Ejecting balls from collector");
-    }
+		}
+		if(!groundCollection && !stationCollection && !ballShooter && !eject) {
+			SwifferMotor.set(0);
+			BeltMotor.set(0);	
+		}
+
     if(gearShift) {
       GearShift.set(DoubleSolenoid.Value.kForward);
     } else {
@@ -270,6 +275,34 @@ public class Robot extends TimedRobot {
 		//endgame color wheel, Jonathan's design, Erin's execution, and Jacob's incredible clean-up skillz.
 		if(colorEndgame && endgameTargetColor!=fieldColor){
 			ColorMotor.set(ControlMode.PercentOutput, ColorMotorVal);
+		}
+
+		// Manual motor controls
+		double joyEY = joyE.getY();
+
+		if(POVgearswitch == 1) {
+			FRMotor.set(joyEY);
+		}
+		if(POVgearswitch == 2) {
+			FLMotor.set(joyEY);
+		}
+		if(POVgearswitch == 3) {
+			BRMotor.set(joyEY);
+		}
+		if(POVgearswitch == 4) {
+			BLMotor.set(joyEY);
+		}
+		if(POVgearswitch == 5) {
+			SwifferMotor.set(joyEY);
+		}
+		if(POVgearswitch == 6) {
+			BeltMotor.set(joyEY);
+		}
+		if(POVgearswitch == 7) {
+			WinchMotor.set(joyEY);
+		}
+		if(POVgearswitch == 8) {
+			ColorMotor.set(joyEY);
 		}
 	}
 }
