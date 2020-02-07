@@ -6,7 +6,8 @@ package frc.robot;
 //the importer was giving me trouble so I manually changed the current language to java and the project year to 2020 in the wpilib_preferences.json
 //TO-DO: Add manual control to just about every aspect of the robot should something go wrong and also for debugging purposes
 //TO-DO: Make rough estimations for distance in auto by taking the circumferance of the wheel and the rpm
-//the circumference of the wheels is 18.849555921538 (diameter is 6) and the rpm is _____
+//the circumference of the wheels is 18.849555921538 (diameter is 6) and the rpm is 5310rpm
+//gear ratios are 5.392(motor rotations):1(wheel rotation) and 12.255(motor rotations): 1(wheel rotation)
 //TO-DO the gear should be switched to have more torque in auto at the cost of speed for increased accuracy
 
 //imports
@@ -22,6 +23,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.I2C;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.SPI;
@@ -43,6 +45,7 @@ public class Robot extends TimedRobot {
 	WPI_VictorSPX WinchMotor = new WPI_VictorSPX(6);
 	WPI_VictorSPX SwifferMotor = new WPI_VictorSPX(7);
 	WPI_VictorSPX BeltMotor = new WPI_VictorSPX(8);
+	WPI_VictorSPX ExtendyBoi = new WPI_VictorSPX(12);
 	DoubleSolenoid SwifferPiston = new DoubleSolenoid(9, 1, 2);
 	DoubleSolenoid GearShift = new DoubleSolenoid(10, 3, 4);
 	DoubleSolenoid CollectionDoor = new DoubleSolenoid(11, 5, 6);
@@ -67,6 +70,7 @@ public class Robot extends TimedRobot {
 	boolean joyETRigger;
 	double RightVal;
 	double LeftVal;
+	double ExtraVal;
 	boolean groundCollection;
 	boolean ballShooter;
 	boolean eject;
@@ -94,6 +98,8 @@ public class Robot extends TimedRobot {
 	double X;
 	double Y;
 	double Z;
+	SendableChooser Position = new SendableChooser<>();
+	SendableChooser Action = new SendableChooser<>();
 
 	// This function is called once at the beginning during operator control
 	public void robotInit() {
@@ -110,36 +116,60 @@ public class Robot extends TimedRobot {
 
   	//Autonomous starts here, beware all ye who dare to look
   	public void autonomousInit() {
+		//selecting the autonomous options
+		Position.addOption("Left", 1);
+		Position.addOption("Middle", 2);
+		Position.addOption("Right", 3);
+		Position.setDefaultOption("Left", 1);
+		SmartDashboard.putData("Starting Position", Position);
+		
+		Action.addOption("Drive past starting line (makes position irrelevant)", 1);
+		Action.addOption("Do nothing (makes position irrelevant)", 2);
+		Action.addOption("Drive to trench (only available if Right side is selected", 3);
+		SmartDashboard.putData("Where we droppin' bois", Action);
     	autoTimer.start();
     	GearShift.set(DoubleSolenoid.Value.kForward);
 	}
 
   	public void autonomousPeriodic() {
-    	double currentAutoTime = autoTimer.get();
-    	//Cross the starting line
-    	if (currentAutoTime<3) {
-      		GearShift.set(DoubleSolenoid.Value.kForward);
-      		FRMotor.set(0.25);
-      		BRMotor.set(0.25);
-      		FLMotor.set(-0.25);
-      		BLMotor.set(-0.25);
-    	} else {
-      		GearShift.set(DoubleSolenoid.Value.kReverse);
-      		FRMotor.set(0);
-      		BRMotor.set(0);
-      		FLMotor.set(0);
-      		BLMotor.set(0);
+		//lil' bit of setup code before the main event
+		String SelectedAction = Action.getSelected().toString();
+		String SelectedPosition = Action.getSelected().toString();
+		double currentAutoTime = autoTimer.get();
+		
+		//Cross the starting line
+		if (SelectedAction == "1") {
+   		 	if (currentAutoTime<3) {
+      			GearShift.set(DoubleSolenoid.Value.kForward);
+      			FRMotor.set(0.25);
+    	  		BRMotor.set(0.25);
+      			FLMotor.set(-0.25);
+      			BLMotor.set(-0.25);
+    		} else {
+      			GearShift.set(DoubleSolenoid.Value.kReverse);
+      			FRMotor.set(0);
+    	  		BRMotor.set(0);
+	      		FLMotor.set(0);
+      			BLMotor.set(0);
+			}
+		}
+		if (SelectedAction == "2") {
+			GearShift.set(DoubleSolenoid.Value.kReverse);
+			FRMotor.set(0);
+			BRMotor.set(0);
+			FLMotor.set(0);
+			BLMotor.set(0);
 		}
 	
 	}
 
   // The teleop section
   	public void teleopInit() {
-    	autoTimer.stop();
+		autoTimer.stop();
+		autoTimer.reset();
   	}
 
 	public void teleopPeriodic() {
-
 		//gyro
 		X = ahrs.getRoll();
 		Y = ahrs.getPitch();
@@ -148,6 +178,7 @@ public class Robot extends TimedRobot {
 		//get joystick values and buttons and such
 		RightVal = joyR.getY();
 		LeftVal = joyL.getY();
+		ExtraVal = joyE.getY();
 		groundCollection = joyE.getRawButton(2);
 		ballShooter = joyE.getRawButton(1);
 		eject = joyE.getRawButton(5);
@@ -201,9 +232,17 @@ public class Robot extends TimedRobot {
 			SwifferMotor.set(-1);
 			System.out.println("Ejecting balls from collector");
 		}
+
+		//Turn the motors off if nothing is pressed
 		if(!groundCollection && !stationCollection && !ballShooter && !eject) {
 			SwifferMotor.set(0);
 			BeltMotor.set(0);	
+		}
+
+		//Pull pistons in without running any motors (feel free to remap this button to something else if need be)
+		if(resetButton2) {
+			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
+			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 		}
 
     if(gearShift) {
@@ -278,31 +317,34 @@ public class Robot extends TimedRobot {
 		}
 
 		// Manual motor controls
-		double joyEY = joyE.getY();
-
-		if(POVgearswitch == 1) {
-			FRMotor.set(joyEY);
-		}
-		if(POVgearswitch == 2) {
-			FLMotor.set(joyEY);
-		}
-		if(POVgearswitch == 3) {
-			BRMotor.set(joyEY);
-		}
-		if(POVgearswitch == 4) {
-			BLMotor.set(joyEY);
-		}
-		if(POVgearswitch == 5) {
-			SwifferMotor.set(joyEY);
-		}
-		if(POVgearswitch == 6) {
-			BeltMotor.set(joyEY);
-		}
-		if(POVgearswitch == 7) {
-			WinchMotor.set(joyEY);
-		}
-		if(POVgearswitch == 8) {
-			ColorMotor.set(joyEY);
+		if(joyE.getRawButton(10)) {
+			if(POVgearswitch == -1) {
+				ExtendyBoi.set(ExtraVal);
+			}
+			if(POVgearswitch == 0) {
+				FRMotor.set(ExtraVal);
+			}
+			if(POVgearswitch == 45) {
+				FLMotor.set(ExtraVal);
+			}
+			if(POVgearswitch == 90) {
+				BRMotor.set(ExtraVal);
+			}
+			if(POVgearswitch == 135) {
+				BLMotor.set(ExtraVal);
+			}
+			if(POVgearswitch == 180) {
+				SwifferMotor.set(ExtraVal);
+			}
+			if(POVgearswitch == 225) {
+				BeltMotor.set(ExtraVal);
+			}
+			if(POVgearswitch == 270) {
+				WinchMotor.set(ExtraVal);
+			}
+			if(POVgearswitch == 315) {
+				ColorMotor.set(ExtraVal);
+			}
 		}
 	}
 }
