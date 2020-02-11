@@ -1,14 +1,14 @@
 
 package frc.robot;
 
+import java.lang.reflect.Method;
+import java.util.function.Function;
+
 //Notes section
 //may be two sparks later and/or spikes later on
 //the importer was giving me trouble so I manually changed the current language to java and the project year to 2020 in the wpilib_preferences.json
-//TO-DO: Add manual control to just about every aspect of the robot should something go wrong and also for debugging purposes
-//TO-DO: Make rough estimations for distance in auto by taking the circumferance of the wheel and the rpm
-//the circumference of the wheels is 18.849555921538 (diameter is 6) and the rpm is 5310rpm
-//gear ratios are 5.392(motor rotations):1(wheel rotation) and 12.255(motor rotations): 1(wheel rotation)
-//TO-DO the gear should be switched to have more torque in auto at the cost of speed for increased accuracy
+//Currrently there are two hooks and winches in the code, but that is fairly likely to change
+//explore the possibility of using the accelerometer to detect a sudden stop in auto (most likely to be used when going to the scoring station)
 
 //imports
 import com.ctre.phoenix.motorcontrol.ControlMode;
@@ -27,8 +27,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.SPI;
+import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.Timer;
-
 
 public class Robot extends TimedRobot {
 
@@ -41,11 +41,13 @@ public class Robot extends TimedRobot {
 	WPI_VictorSPX BRMotor = new WPI_VictorSPX(2);
 	WPI_VictorSPX FLMotor = new WPI_VictorSPX(3);
 	WPI_VictorSPX BLMotor = new WPI_VictorSPX(4);
-	WPI_VictorSPX ColorMotor = new WPI_VictorSPX(5);
-	WPI_VictorSPX WinchMotor = new WPI_VictorSPX(6);
+	Spark ColorMotor = new Spark(5);
+	WPI_VictorSPX WinchLeft = new WPI_VictorSPX(6);
+	WPI_VictorSPX WinchRight = new WPI_VictorSPX(14);
 	WPI_VictorSPX SwifferMotor = new WPI_VictorSPX(7);
 	WPI_VictorSPX BeltMotor = new WPI_VictorSPX(8);
-	WPI_VictorSPX ExtendyBoi = new WPI_VictorSPX(12);
+	WPI_VictorSPX Hook1 = new WPI_VictorSPX(12);
+	WPI_VictorSPX Hook2 = new WPI_VictorSPX(13);
 	DoubleSolenoid SwifferPiston = new DoubleSolenoid(9, 1, 2);
 	DoubleSolenoid GearShift = new DoubleSolenoid(10, 3, 4);
 	DoubleSolenoid CollectionDoor = new DoubleSolenoid(11, 5, 6);
@@ -95,11 +97,10 @@ public class Robot extends TimedRobot {
 	boolean allRotationsDone = false;
 	String gameData;
 	Timer autoTimer = new Timer();
-	double X;
-	double Y;
-	double Z;
+	double endgameClimbAngle;
 	SendableChooser Position = new SendableChooser<>();
 	SendableChooser Action = new SendableChooser<>();
+	boolean usefulAutoVal = false;
 
 	// This function is called once at the beginning during operator control
 	public void robotInit() {
@@ -123,12 +124,11 @@ public class Robot extends TimedRobot {
 		Position.setDefaultOption("Left", 1);
 		SmartDashboard.putData("Starting Position", Position);
 		
-		Action.addOption("Drive past starting line (makes position irrelevant)", 1);
-		Action.addOption("Do nothing (makes position irrelevant)", 2);
-		Action.addOption("Drive to trench (only available if Right side is selected", 3);
+		Action.addOption("Move during auto (5pts)", 1);
+		Action.addOption("Do nothing (0pts)", 2);
+		Action.addOption("Score (up to 11pts", 3);
 		SmartDashboard.putData("Where we droppin' bois", Action);
-    	autoTimer.start();
-    	GearShift.set(DoubleSolenoid.Value.kForward);
+		autoTimer.start();
 	}
 
   	public void autonomousPeriodic() {
@@ -136,15 +136,16 @@ public class Robot extends TimedRobot {
 		String SelectedAction = Action.getSelected().toString();
 		String SelectedPosition = Action.getSelected().toString();
 		double currentAutoTime = autoTimer.get();
+		GearShift.set(DoubleSolenoid.Value.kForward);
 		
-		//Cross the starting line
+		//Move Forward a bit
 		if (SelectedAction == "1") {
-   		 	if (currentAutoTime<3) {
-      			GearShift.set(DoubleSolenoid.Value.kForward);
-      			FRMotor.set(0.25);
-    	  		BRMotor.set(0.25);
-      			FLMotor.set(-0.25);
-      			BLMotor.set(-0.25);
+   		 	if (currentAutoTime<2) {
+				//test of the driveForward function as defined near the top
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(0.25);
+					BLMotor.set(0.25);
     		} else {
       			GearShift.set(DoubleSolenoid.Value.kReverse);
       			FRMotor.set(0);
@@ -153,12 +154,102 @@ public class Robot extends TimedRobot {
       			BLMotor.set(0);
 			}
 		}
+		//do nothing
 		if (SelectedAction == "2") {
 			GearShift.set(DoubleSolenoid.Value.kReverse);
 			FRMotor.set(0);
 			BRMotor.set(0);
 			FLMotor.set(0);
 			BLMotor.set(0);
+		}
+		//this is da big'un, da scorin'
+		if (SelectedAction == "3") {
+			if (SelectedPosition == "1") {
+				if (currentAutoTime<3) {
+					//turn 180 degrees to face the opposite direction
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(-0.25);
+					BLMotor.set(-0.25);
+				} else {
+					//hand it over to method 0
+					autoTimer.reset();
+					SelectedPosition = "0";
+				}
+			}
+			if (SelectedPosition == "2" || SelectedPosition == "3") {
+				if (currentAutoTime<1.5) {
+					//move forward a bit
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(0.25);
+					BLMotor.set(0.25);
+				}
+				if (currentAutoTime>2 && currentAutoTime<3.5) {
+					//turn 90 degrees to the counterclockwise
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(-0.25);
+					BLMotor.set(-0.25);
+				} else {
+					//hand it over to the other two methods
+					usefulAutoVal = true;
+				}
+			}
+			if (SelectedPosition == "2" && usefulAutoVal) {
+				if (currentAutoTime>4 && currentAutoTime<6) {
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(0.25);
+					BLMotor.set(0.25);
+				}
+				if (currentAutoTime>6.5 && currentAutoTime<8) {
+					//turn 90 degrees to the counterclockwise
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(-0.25);
+					BLMotor.set(-0.25);
+				} else {
+					//hand it over to method 0
+					SelectedPosition = "0";
+					autoTimer.reset();
+				}
+			}
+			if (SelectedPosition == "3" && usefulAutoVal) {
+				if (currentAutoTime>4 && currentAutoTime<7) {
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(0.25);
+					BLMotor.set(0.25);
+				}
+				if (currentAutoTime>7.5 && currentAutoTime<9) {
+					//turn 90 degrees to the counterclockwise
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(-0.25);
+					BLMotor.set(-0.25);
+				} else {
+					//hand it over to method 0
+					SelectedPosition = "0";
+					autoTimer.reset();
+				}
+			}
+			//METHOD 0
+			if (SelectedPosition == "0") {
+				if (currentAutoTime<4) {
+					//drive forward to the wall
+					FRMotor.set(0.25);
+					BRMotor.set(0.25);
+					FLMotor.set(0.25);
+					BLMotor.set(0.25);
+				}
+				if (currentAutoTime>5 && currentAutoTime<8) {
+					//assume that we're about against the wall and fire the cannon
+					CollectionDoor.set(DoubleSolenoid.Value.kReverse);
+					SwifferPiston.set(DoubleSolenoid.Value.kReverse);
+					BeltMotor.set(1);					
+				}
+			}
 		}
 	
 	}
@@ -171,9 +262,10 @@ public class Robot extends TimedRobot {
 
 	public void teleopPeriodic() {
 		//gyro
-		X = ahrs.getRoll();
-		Y = ahrs.getPitch();
-		Z = ahrs.getYaw();
+		//yaw is the one we'll actually use, low than 90 = counterclockwise, 90 = straight up, more than 90 = clockwise
+		endgameClimbAngle = ahrs.getYaw();
+		SmartDashboard.putNumber("Yaw", endgameClimbAngle);
+		SmartDashboard.putBoolean("Is the gyro calibrating?", ahrs.isCalibrating());
 
 		//get joystick values and buttons and such
 		RightVal = joyR.getY();
@@ -199,6 +291,44 @@ public class Robot extends TimedRobot {
 		FLMotor.set(LeftVal);
 		BLMotor.set(LeftVal);
 
+		//Winch movement
+		if (winchForwards) {
+			if (endgameClimbAngle<85) {
+				WinchRight.set(0.5);
+				WinchLeft.set(1);
+			} 
+			if (endgameClimbAngle>95) {
+				WinchRight.set(1);
+				WinchLeft.set(0.5);
+			}
+			if (endgameClimbAngle>85 && endgameClimbAngle<95) {
+				WinchRight.set(0.75);
+				WinchLeft.set(0.75);
+			}
+		}
+		if (winchReverse) {
+			WinchRight.set(-0.5);
+			WinchLeft.set(-0.5);
+		}
+		if(!winchForwards && !winchReverse) {
+			WinchRight.set(0);
+			WinchLeft.set(0);
+		}
+
+		//Hook Movement
+		if (POVhook == 0) {
+			Hook1.set(1);
+			Hook2.set(1);
+		}
+		if (POVhook == 180) {
+			Hook1.set(-0.5);
+			Hook2.set(-0.5);
+		}
+		if (POVhook == -1) {
+			Hook1.set(0);
+			Hook2.set(0);
+		}
+
 		//Ground Collection
 		if(groundCollection) {
 			CollectionDoor.set(DoubleSolenoid.Value.kForward);
@@ -213,7 +343,7 @@ public class Robot extends TimedRobot {
 			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 			BeltMotor.set(-0.5);
-			System.out.println("Collecting from the human player");
+			System.out.println("Collecting from the human player station");
 		}
 
 		//Ball shooter
@@ -238,18 +368,27 @@ public class Robot extends TimedRobot {
 			SwifferMotor.set(0);
 			BeltMotor.set(0);	
 		}
+		
+		//Reset the color wheel values
+		if (resetButton1) {
+			allRotationsDone = false;
+			halfRotation = 0;
+			endRotation = false;
+		}
 
 		//Pull pistons in without running any motors (feel free to remap this button to something else if need be)
 		if(resetButton2) {
-			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
+			CollectionDoor.set(DoubleSolenoid.Value.kForward);
 			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 		}
 
-    if(gearShift) {
-      GearShift.set(DoubleSolenoid.Value.kForward);
-    } else {
-      GearShift.set(DoubleSolenoid.Value.kReverse);
-    }
+
+		//shift the gears (hold)
+    	if(gearShift) {
+      		GearShift.set(DoubleSolenoid.Value.kForward);
+	    	} else {
+    	  	GearShift.set(DoubleSolenoid.Value.kReverse);
+    		}
 	
 		//Classic endgame question of "what color do we need to get again???"
 		gameData = DriverStation.getInstance().getGameSpecificMessage();
@@ -270,26 +409,29 @@ public class Robot extends TimedRobot {
 		}
 		
 		//Color Sensor functions
-		currentColor = colorSensor.getColor();
-		match = m_colorMatcher.matchClosestColor(currentColor);
-		if (match.color == kGreenTarget) {
-			colorString = "Green";
-			color = 2;
-			endRotation = true;
-		} else if (match.color == kYellowTarget) {
-			colorString = "Yellow";
-			color = 4;
-		} else if (match.color == kBlueTarget) {
-			colorString = "Blue";
-			color = 3;
-		} else if (match.color == kRedTarget) {
-			colorString = "Red";
-			color = 1;
-		} else {
-			colorString = "Unknown";
-			color = 0;
-			fieldColor = 0;
+		if (colorRotations || colorEndgame) {
+			currentColor = colorSensor.getColor();
+			match = m_colorMatcher.matchClosestColor(currentColor);
+			if (match.color == kGreenTarget) {
+				colorString = "Green";
+				color = 2;
+				endRotation = true;
+			} else if (match.color == kYellowTarget) {
+				colorString = "Yellow";
+				color = 4;
+			} else if (match.color == kBlueTarget) {
+				colorString = "Blue";
+				color = 3;
+			} else if (match.color == kRedTarget) {
+				colorString = "Red";
+				color = 1;
+			} else {
+				colorString = "Unknown";
+				color = 0;
+				fieldColor = 0;
+			}
 		}
+
 		if(color != 0) fieldColor = (color+2)%4;
 		if (fieldColor == 1 && endRotation) {
 			halfRotation = halfRotation + 1;
@@ -303,23 +445,18 @@ public class Robot extends TimedRobot {
 			allRotationsDone = true;
 		}
 		if (colorRotations && !allRotationsDone) {
-			ColorMotor.set(ControlMode.PercentOutput, ColorMotorVal);
-		}
-		if (resetButton1) {
-			allRotationsDone = false;
-			halfRotation = 0;
-			endRotation = false;
+			ColorMotor.set(ColorMotorVal);
 		}
 
-		//endgame color wheel, Jonathan's design, Erin's execution, and Jacob's incredible clean-up skillz.
 		if(colorEndgame && endgameTargetColor!=fieldColor){
-			ColorMotor.set(ControlMode.PercentOutput, ColorMotorVal);
+			ColorMotor.set(ColorMotorVal);
 		}
 
 		// Manual motor controls
 		if(joyE.getRawButton(10)) {
 			if(POVgearswitch == -1) {
-				ExtendyBoi.set(ExtraVal);
+				Hook1.set(ExtraVal);
+				Hook2.set(ExtraVal);
 			}
 			if(POVgearswitch == 0) {
 				FRMotor.set(ExtraVal);
@@ -340,7 +477,8 @@ public class Robot extends TimedRobot {
 				BeltMotor.set(ExtraVal);
 			}
 			if(POVgearswitch == 270) {
-				WinchMotor.set(ExtraVal);
+				WinchLeft.set(ExtraVal);
+				WinchRight.set(ExtraVal);
 			}
 			if(POVgearswitch == 315) {
 				ColorMotor.set(ExtraVal);
