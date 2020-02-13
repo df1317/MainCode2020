@@ -1,13 +1,11 @@
 
 package frc.robot;
 
-
 //Notes section
-//may be two sparks later and/or spikes later on
 //the importer was giving me trouble so I manually changed the current language to java and the project year to 2020 in the wpilib_preferences.json
 //Currrently there are two hooks and winches in the code, but that is fairly likely to change
-//explore the possibility of using the accelerometer to detect a sudden stop in auto (most likely to be used when going to the scoring station)
 //currently Hook2 is commented out as well as WinchRight, WinchLeft is set to have a speed of 0.75 in all situations
+//auto scoring option is clearly unreasonable from a timing perspective
 
 //imports
 import java.lang.reflect.Method;
@@ -104,7 +102,7 @@ public class Robot extends TimedRobot {
 	double endgameClimbAngle;
 	SendableChooser Position = new SendableChooser<>();
 	SendableChooser Action = new SendableChooser<>();
-	boolean usefulAutoVal = false;
+	boolean AutoDiverge = false;
 	String SelectedMotor = "nothing";
 
 	// This function is called once at the beginning during operator control
@@ -130,6 +128,8 @@ public class Robot extends TimedRobot {
 		Action.addOption("Score (up to 11pts)", 3);
 		Action.addOption("Boogie (0pts)", 4);
 		Action.addOption("Reverse to the Wall (5pts)", 5);
+		Action.addOption("Debugging 50% speed for 3 seconds", 6);
+		Action.addOption("Debugging 90 degree-ish turn over 1.5 seconds", 7);
 		SmartDashboard.putData("Where we droppin' bois", Action);
 	}
 
@@ -176,12 +176,12 @@ public class Robot extends TimedRobot {
 		//this is da big'un, da scorin'
 		if (SelectedAction == "3") {
 			if (SelectedPosition == "1") {
-				if (currentAutoTime<3) {
+				if (currentAutoTime<1.5) {
 					//turn 180 degrees to face the opposite direction
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(-0.25);
-					BLMotor.set(-0.25);
+					FRMotor.set(0.5);
+					BRMotor.set(0.5);
+					FLMotor.set(-0.5);
+					BLMotor.set(-0.5);
 				} else {
 					//hand it over to method 0
 					autoTimer.reset();
@@ -189,56 +189,56 @@ public class Robot extends TimedRobot {
 				}
 			}
 			if (SelectedPosition == "2" || SelectedPosition == "3") {
-				if (currentAutoTime<1.5) {
+				if (currentAutoTime<1) {
 					//move forward a bit
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(0.25);
-					BLMotor.set(0.25);
+					FRMotor.set(0.5);
+					BRMotor.set(0.5);
+					FLMotor.set(0.5);
+					BLMotor.set(0.5);
 				}
-				if (currentAutoTime>2 && currentAutoTime<3.5) {
+				if (currentAutoTime>1.5 && currentAutoTime<3) {
 					//turn 90 degrees to the counterclockwise
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(-0.25);
-					BLMotor.set(-0.25);
+					FRMotor.set(0.5);
+					BRMotor.set(0.5);
+					FLMotor.set(-0.5);
+					BLMotor.set(-0.5);
 				} else {
 					//hand it over to the other two methods
-					usefulAutoVal = true;
+					AutoDiverge = true;
 				}
 			}
-			if (SelectedPosition == "2" && usefulAutoVal) {
-				if (currentAutoTime>4 && currentAutoTime<6) {
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(0.25);
-					BLMotor.set(0.25);
+			if (SelectedPosition == "2" && AutoDiverge) {
+				if (currentAutoTime>3.5 && currentAutoTime<5.5) {
+					FRMotor.set(0.5);
+					BRMotor.set(0.5);
+					FLMotor.set(0.5);
+					BLMotor.set(0.5);
 				}
-				if (currentAutoTime>6.5 && currentAutoTime<8) {
+				if (currentAutoTime>6 && currentAutoTime<7.5) {
 					//turn 90 degrees to the counterclockwise
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(-0.25);
-					BLMotor.set(-0.25);
+					FRMotor.set(0.5);
+					BRMotor.set(0.5);
+					FLMotor.set(-0.5);
+					BLMotor.set(-0.5);
 				} else {
 					//hand it over to method 0
 					SelectedPosition = "0";
 					autoTimer.reset();
 				}
 			}
-			if (SelectedPosition == "3" && usefulAutoVal) {
-				if (currentAutoTime>4 && currentAutoTime<7) {
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(0.25);
-					BLMotor.set(0.25);
+			if (SelectedPosition == "3" && AutoDiverge) {
+				if (currentAutoTime>3.5 && currentAutoTime<6.5) {
+					FRMotor.set(0.5);
+					BRMotor.set(0.5);
+					FLMotor.set(0.5);
+					BLMotor.set(0.5);
 				}
-				if (currentAutoTime>7.5 && currentAutoTime<9) {
+				if (currentAutoTime>7 && currentAutoTime<8.5) {
 					//turn 90 degrees to the counterclockwise
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(-0.25);
-					BLMotor.set(-0.25);
+					FRMotor.set(0.5);
+					BRMotor.set(0.5);
+					FLMotor.set(-0.5);
+					BLMotor.set(-0.5);
 				} else {
 					//hand it over to method 0
 					SelectedPosition = "0";
@@ -247,7 +247,7 @@ public class Robot extends TimedRobot {
 			}
 			//METHOD 0
 			if (SelectedPosition == "0") {
-				if (currentAutoTime<4) {
+				if (currentAutoTime<2.5) {
 					//drive forward to the wall
 					FRMotor.set(0.25);
 					BRMotor.set(0.25);
@@ -256,7 +256,7 @@ public class Robot extends TimedRobot {
 					CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 					SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 				}
-				if (currentAutoTime>5 && currentAutoTime<8) {
+				if (currentAutoTime>3 && currentAutoTime<6) {
 					//assume that we're about against the wall and fire the cannon
 					FRMotor.set(0);
 					BRMotor.set(0);
@@ -264,7 +264,7 @@ public class Robot extends TimedRobot {
 					BLMotor.set(0);
 					BeltMotor.set(1);					
 				}
-				if (currentAutoTime>8) {
+				if (currentAutoTime>6.5) {
 					FRMotor.set(-0.25);
 					BRMotor.set(-0.25);
 					FLMotor.set(-0.25);
@@ -306,6 +306,23 @@ public class Robot extends TimedRobot {
 			BRMotor.set(-0.25);
 			FLMotor.set(-0.25);
 			BLMotor.set(-0.25);
+		}
+		if (SelectedAction == "6") {
+			if (currentAutoTime < 3) {
+				FRMotor.set(0.5);
+				BRMotor.set(0.5);
+				FLMotor.set(0.5);
+				BLMotor.set(0.5);
+			}
+		}
+		if (SelectedAction == "7") {
+			if (currentAutoTime < 1.5) {
+				//main goal is to get the proper percentage, time adjustments should be made if necessary
+				FRMotor.set(-0.5);
+				BRMotor.set(-0.5);
+				FLMotor.set(0.5);
+				BLMotor.set(0.5);
+			}
 		}
 	}
 
