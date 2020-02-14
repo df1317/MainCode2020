@@ -106,6 +106,15 @@ public class Robot extends TimedRobot {
 	SendableChooser Action = new SendableChooser<>();
 	boolean AutoDiverge = false;
 	String SelectedMotor = "nothing";
+	String SelectedAction;
+	String SelectedPosition;
+	double currentAutoTime = 0;
+	double totalAutoTime = 0;
+	double deltaTime = 0;
+	double rawGyroVal = 0;
+	double processedGyroVal = 0;
+	boolean Rejoined = false;
+
 
 	// This function is called once at the beginning during operator control
 	public void robotInit() {
@@ -123,6 +132,7 @@ public class Robot extends TimedRobot {
 		Position.addOption("Left", 1);
 		Position.addOption("Middle", 2);
 		Position.addOption("Right", 3);
+		Position.setDefaultOption("Left", 1);
 		SmartDashboard.putData("Starting Position", Position);
 
 		Action.addOption("Move during auto (5pts)", 1);
@@ -132,6 +142,9 @@ public class Robot extends TimedRobot {
 		Action.addOption("Reverse to the Wall (5pts)", 5);
 		Action.addOption("Debugging 50% speed for 3 seconds", 6);
 		Action.addOption("Debugging 90 degree-ish turn over 1.5 seconds", 7);
+		Action.addOption("Debugging 90 degree turn but I use getPitch()", 8);
+		Action.addOption("Debugging 90 degree turn but I use processedGyroVal", 9);
+		Action.setDefaultOption("Move during auto (5pts)", 1);
 		SmartDashboard.putData("Where we droppin' bois", Action);
 	}
 
@@ -141,25 +154,29 @@ public class Robot extends TimedRobot {
 
   	//Autonomous starts here, beware all ye who dare to look
   	public void autonomousInit() {
+		autoTimer.reset();
 		autoTimer.start();
 	}
 
   	public void autonomousPeriodic() {
 		//lil' bit of setup code before the main event
-		String SelectedAction = Action.getSelected().toString();
-		String SelectedPosition = Position.getSelected().toString();
-		double currentAutoTime = autoTimer.get();
+		autoTimer.reset();
+		SelectedAction = Action.getSelected().toString();
+		SelectedPosition = Position.getSelected().toString();
+		//currentAutoTime = autoTimer.get();
 		GearShift.set(DoubleSolenoid.Value.kForward);
+		rawGyroVal = ahrs.getRawGyroY();
 		
 		//Move Forward a bit
 		if (SelectedAction == "1") {
    		 	if (currentAutoTime<2) {
-				//test of the driveForward function as defined near the top
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(0.25);
-					BLMotor.set(0.25);
+				//Drive Forward
+				FRMotor.set(0.25);
+				BRMotor.set(0.25);
+				FLMotor.set(0.25);
+				BLMotor.set(0.25);
     		} else {
+				//Stop Driving forward and revert to default gearshift setting
       			GearShift.set(DoubleSolenoid.Value.kReverse);
       			FRMotor.set(0);
     	  		BRMotor.set(0);
@@ -169,6 +186,7 @@ public class Robot extends TimedRobot {
 		}
 		//do nothing
 		if (SelectedAction == "2") {
+			//literally don't do anything at all
 			GearShift.set(DoubleSolenoid.Value.kReverse);
 			FRMotor.set(0);
 			BRMotor.set(0);
@@ -177,20 +195,23 @@ public class Robot extends TimedRobot {
 		}
 		//this is da big'un, da scorin'
 		if (SelectedAction == "3") {
-			if (SelectedPosition == "1") {
+			//Left Position
+			if (SelectedPosition == "1" && Rejoined == false) {
 				if (currentAutoTime<1.5) {
 					//turn 180 degrees to face the opposite direction
 					FRMotor.set(0.5);
 					BRMotor.set(0.5);
 					FLMotor.set(-0.5);
 					BLMotor.set(-0.5);
-				} else {
+				} 
+				if (currentAutoTime>1.5) {
 					//hand it over to method 0
-					autoTimer.reset();
-					SelectedPosition = "0";
+					AutoDiverge = true;
+					Rejoined = true;
 				}
 			}
-			if (SelectedPosition == "2" || SelectedPosition == "3") {
+			//Middle or Right Positions (both start by doing the same thing)
+			if (SelectedPosition == "2" || SelectedPosition == "3" && Rejoined == false) {
 				if (currentAutoTime<1) {
 					//move forward a bit
 					FRMotor.set(0.5);
@@ -209,8 +230,10 @@ public class Robot extends TimedRobot {
 					AutoDiverge = true;
 				}
 			}
-			if (SelectedPosition == "2" && AutoDiverge) {
+			//Middle Position after driving forward and turning
+			if (SelectedPosition == "2" && AutoDiverge && Rejoined == false) {
 				if (currentAutoTime>3.5 && currentAutoTime<5.5) {
+					//drive forward
 					FRMotor.set(0.5);
 					BRMotor.set(0.5);
 					FLMotor.set(0.5);
@@ -222,14 +245,16 @@ public class Robot extends TimedRobot {
 					BRMotor.set(0.5);
 					FLMotor.set(-0.5);
 					BLMotor.set(-0.5);
-				} else {
+				}
+				if (currentAutoTime>7.5) {
 					//hand it over to method 0
-					SelectedPosition = "0";
-					autoTimer.reset();
+					Rejoined = true;
 				}
 			}
-			if (SelectedPosition == "3" && AutoDiverge) {
+			//Left Position after driving forward and turning
+			if (SelectedPosition == "3" && AutoDiverge && Rejoined == false) {
 				if (currentAutoTime>3.5 && currentAutoTime<6.5) {
+					//drive forward
 					FRMotor.set(0.5);
 					BRMotor.set(0.5);
 					FLMotor.set(0.5);
@@ -241,14 +266,19 @@ public class Robot extends TimedRobot {
 					BRMotor.set(0.5);
 					FLMotor.set(-0.5);
 					BLMotor.set(-0.5);
-				} else {
+				}
+				if (currentAutoTime>8.5) {
 					//hand it over to method 0
-					SelectedPosition = "0";
-					autoTimer.reset();
+					Rejoined = true;
 				}
 			}
-			//METHOD 0
-			if (SelectedPosition == "0") {
+			//Rejoins all previous parts of the program into one piece
+			if (Rejoined == true) {
+				//reset timer
+				if (AutoDiverge == true) {
+					currentAutoTime = 0;
+					AutoDiverge = false;
+				}
 				if (currentAutoTime<2.5) {
 					//drive forward to the wall
 					FRMotor.set(0.25);
@@ -267,6 +297,7 @@ public class Robot extends TimedRobot {
 					BeltMotor.set(1);					
 				}
 				if (currentAutoTime>6.5) {
+					//back up away from the wall
 					FRMotor.set(-0.25);
 					BRMotor.set(-0.25);
 					FLMotor.set(-0.25);
@@ -302,6 +333,7 @@ public class Robot extends TimedRobot {
 				}
 			}
 		}
+		//back up to the wall-ish
 		if (SelectedAction == "5") {
 			if (currentAutoTime < 4)
 			FRMotor.set(-0.25);
@@ -309,6 +341,7 @@ public class Robot extends TimedRobot {
 			FLMotor.set(-0.25);
 			BLMotor.set(-0.25);
 		}
+		//move at 50% speed for 3 seconds
 		if (SelectedAction == "6") {
 			if (currentAutoTime < 3) {
 				FRMotor.set(0.5);
@@ -317,6 +350,7 @@ public class Robot extends TimedRobot {
 				BLMotor.set(0.5);
 			}
 		}
+		//turn using timing
 		if (SelectedAction == "7") {
 			if (currentAutoTime < 1.5) {
 				//main goal is to get the proper percentage, time adjustments should be made if necessary
@@ -326,6 +360,50 @@ public class Robot extends TimedRobot {
 				BLMotor.set(0.5);
 			}
 		}
+		//turn using ahrs.getPitch()
+		if (SelectedAction == "8") {
+			if (currentAutoTime < 1.5) {
+				//I'm assuming pitch is the correct one, if not then try roll, definitely not yaw
+				//two degrees of difference shouldn't be anything crazy at all
+				//the direction of the motors may be inverted, in which case, it'll just spin around a bunch
+				//also, I don't know if the default value is zero or not, if not, I'm going to have to make a a separate thing to calculate it so that I can zero it out
+				if (ahrs.getPitch() > 92) {
+					FRMotor.set(-0.5);
+					BRMotor.set(-0.5);
+					FLMotor.set(0.5);
+					BLMotor.set(0.5);
+				}
+				if (ahrs.getPitch() < 88) {
+					FRMotor.set(-0.5);
+					BRMotor.set(-0.5);
+					FLMotor.set(0.5);
+					BLMotor.set(0.5);
+				}
+			}
+		}
+		//turn using processedGyroVal
+		if (SelectedAction == "9") {
+			if (currentAutoTime < 1.5) {
+				if (processedGyroVal > 92) {
+					FRMotor.set(-0.5);
+					BRMotor.set(-0.5);
+					FLMotor.set(0.5);
+					BLMotor.set(0.5);
+				}
+				if (processedGyroVal < 88) {
+					FRMotor.set(-0.5);
+					BRMotor.set(-0.5);
+					FLMotor.set(0.5);
+					BLMotor.set(0.5);
+				}
+			}
+		}
+		//deltaTime stuff (MUST BE AT BOTTOM OF AUTO)
+		deltaTime = autoTimer.get();
+		SmartDashboard.putNumber("deltaTime", deltaTime);
+		System.out.println(deltaTime);
+		processedGyroVal = rawGyroVal * deltaTime;
+		currentAutoTime = deltaTime + currentAutoTime;
 	}
 
   // The teleop section
