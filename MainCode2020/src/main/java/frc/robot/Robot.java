@@ -6,6 +6,8 @@ package frc.robot;
 //Currrently there are two hooks and winches in the code, but that is fairly likely to change
 //currently Hook2 is commented out as well as WinchRight, WinchLeft is set to have a speed of 0.75 in all situations
 //auto scoring option is clearly unreasonable from a timing perspective
+//Change autonomous particularly for the scoring action because I'm unconvinced that havin it switch between different methods so often will end in success. I think I ought to
+//(cont.) consider using even more booleans triggered by specific timing or separating such that each one never combines into and always remains separate (similar to other actions)
 
 //imports
 import java.lang.reflect.Method;
@@ -581,7 +583,6 @@ public class Robot extends TimedRobot {
 				SelectedMotor = "Color Motor Selected";
 			}
 			SmartDashboard.putString("Selected Motor", SelectedMotor);
-
 		}
 	}
 }
