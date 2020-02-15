@@ -38,23 +38,22 @@ public class Robot extends TimedRobot {
 
 	//Hardware Declarations
 	//note for the future, Victor is a part of the normal wpi, and the ctre library features the VictorSPX and the WPI_VictorSPX.
-	//(cont.) Most of the corresponding imports are above but are commented out.
 	WPI_VictorSPX FRMotor = new WPI_VictorSPX(1);
 	WPI_VictorSPX BRMotor = new WPI_VictorSPX(2);
 	WPI_VictorSPX FLMotor = new WPI_VictorSPX(3);
 	WPI_VictorSPX BLMotor = new WPI_VictorSPX(4);
-	Spark ColorMotor = new Spark(5);
-	WPI_VictorSPX WinchLeft = new WPI_VictorSPX(6);
-	//WPI_VictorSPX WinchRight = new WPI_VictorSPX(14);
-	WPI_VictorSPX SwifferMotor = new WPI_VictorSPX(7);
-	WPI_VictorSPX BeltMotor = new WPI_VictorSPX(8);
-	Spark Hook1 = new Spark(12);
-	//Spark Hook2 = new Spark(13);
-	DoubleSolenoid SwifferPiston = new DoubleSolenoid(9, 1, 2);
-	DoubleSolenoid GearShift = new DoubleSolenoid(10, 3, 4);
-	DoubleSolenoid CollectionDoor = new DoubleSolenoid(11, 5, 6);
+	WPI_VictorSPX Winch = new WPI_VictorSPX(5);
+	WPI_VictorSPX SwifferMotor = new WPI_VictorSPX(6);
+	WPI_VictorSPX BeltMotor = new WPI_VictorSPX(7);
+	WPI_VictorSPX UnknownMotor = new WPI_VictorSPX(8);
+	Spark Hook1 = new Spark(9);
+	Spark ColorMotor = new Spark(10);
+	DoubleSolenoid SwifferPiston = new DoubleSolenoid(11, 2, 4);
+	DoubleSolenoid GearShift = new DoubleSolenoid(12, 3, 4);
+	DoubleSolenoid CollectionDoor = new DoubleSolenoid(13, 5, 6);
 	DoubleSolenoid AngleAdjustment = new DoubleSolenoid(14, 7, 8);
-	Compressor compressor;
+	//I don't think we need the compressor decleration for it to work
+	//Compressor compressor;
 	I2C.Port i2cPort = I2C.Port.kOnboard;
 	ColorSensorV3 colorSensor = new ColorSensorV3(i2cPort);
 	AHRS ahrs;
@@ -90,6 +89,10 @@ public class Robot extends TimedRobot {
 	boolean resetButton1;
 	boolean resetButton2;
 	int POVMotorSwitch;
+	//temp buttons for testing purposes only
+	boolean SwifferPistonButton;
+	boolean CollectionPistonButton;
+	boolean AngleAdjustmentButton;
 
 	//Additional Values
 	double ColorMotorVal = 0.5;
@@ -417,7 +420,7 @@ public class Robot extends TimedRobot {
 		BeltMotor.set(0);
 		SwifferMotor.set(0);
 		ColorMotor.set(0);
-		WinchLeft.set(0);
+		Winch.set(0);
 		//WinchRight.set(0);
 		Hook1.set(0);
 		//Hook2.set(0);
@@ -446,6 +449,9 @@ public class Robot extends TimedRobot {
 		gearShift = joyR.getRawButton(1);
 		resetButton1 = joyE.getRawButton(7);
 		resetButton2 = joyE.getRawButton(8);
+		SwifferPistonButton = joyL.getRawButton(7);
+		CollectionPistonButton = joyL.getRawButton(8);
+		AngleAdjustmentButton = joyL.getRawButton(9);
 		POVMotorSwitch = joyL.getPOV();
 		
 		//DriveTrain
@@ -456,26 +462,14 @@ public class Robot extends TimedRobot {
 
 		//Winch movement
 		if (winchForwards) {
-			if (endgameClimbAngle<85) {
-				//WinchRight.set(0.5);
-				WinchLeft.set(0.75);
-			} 
-			if (endgameClimbAngle>95) {
-				//WinchRight.set(1);
-				WinchLeft.set(0.75);
-			}
-			if (endgameClimbAngle>85 && endgameClimbAngle<95) {
-				//WinchRight.set(0.75);
-				WinchLeft.set(0.75);
-			}
+			Winch.set(0.75);
 		}
 		if (winchReverse) {
-			//WinchRight.set(-0.5);
-			WinchLeft.set(-0.5);
+			Winch.set(-0.5);
 		}
 		if(!winchForwards && !winchReverse) {
 			//WinchRight.set(0);
-			WinchLeft.set(0);
+			Winch.set(0);
 		}
 
 		//Hook Movement
@@ -544,10 +538,21 @@ public class Robot extends TimedRobot {
 		}
 
 		//Sets robot to smallest configuration
-		if(resetButton2) {
+		if(resetButton2 || joyL.getRawButton(10)) {
 			CollectionDoor.set(DoubleSolenoid.Value.kForward);
 			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
+		}
+
+		//temp buttons for debuggin'
+		if (AngleAdjustmentButton) {
+			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
+		}
+		if (SwifferPistonButton) {
+			SwifferPiston.set(DoubleSolenoid.Value.kForward);
+		}
+		if (CollectionPistonButton) {
+			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 		}
 
 
@@ -652,7 +657,7 @@ public class Robot extends TimedRobot {
 				SelectedMotor = "Belt Motor Selected";
 			}
 			if(POVMotorSwitch == 270) {
-				WinchLeft.set(ExtraVal);
+				Winch.set(ExtraVal);
 				//WinchRight.set(ExtraVal);
 				SelectedMotor = "Winch Motor(s) Selected";
 			}
