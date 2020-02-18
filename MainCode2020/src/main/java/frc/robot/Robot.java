@@ -416,6 +416,7 @@ public class Robot extends TimedRobot {
 
   // The teleop section
   	public void teleopInit() {
+		autoTimer.start();
 		FRMotor.set(0);
 		BRMotor.set(0);
 		FLMotor.set(0);
@@ -493,7 +494,7 @@ public class Robot extends TimedRobot {
 		//Ground Collection
 		if(groundCollection) {
 			CollectionDoor.set(DoubleSolenoid.Value.kForward);
-			if (autoTimer.get() > 0.75) {
+			if (!isSwifferPulsing) {
 				SwifferPiston.set(DoubleSolenoid.Value.kForward);
 			}
 			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
@@ -515,22 +516,19 @@ public class Robot extends TimedRobot {
 
 		//Ball shooter
 		if (ballShooter) {
-			autoTimer.start();
 			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 			if (autoTimer.get() > 1) {
 				hasDoorFullyOpened = true;
 			}
 		}
 		if(ballShooter && hasDoorFullyOpened) {
-			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
 			BeltMotor.set(1);
 			SwifferMotor.set(-.5);
 			System.out.println("Lobbing the balls from the cannon thingy");
 		}
-		if (autoTimer.get()>1 && !ballShooter && !isSwifferPulsing) {
-			autoTimer.reset();
+		if (!ballShooter && !isSwifferPulsing) {
 			autoTimer.reset();
 		}
 
@@ -547,16 +545,12 @@ public class Robot extends TimedRobot {
 
 		//pulse the darn thingy
 		if (pulseSwiffer) {
-			autoTimer.reset();
-			autoTimer.start();
 			if (autoTimer.get() < 0.75) {
 				SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 				isSwifferPulsing = true;
 			}
 			if (autoTimer.get() > 0.75) {
 				isSwifferPulsing = false;
-				autoTimer.stop();
-				autoTimer.reset();
 			}
 		}
 
