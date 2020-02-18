@@ -17,6 +17,9 @@ import com.kauailabs.navx.frc.AHRS;
 import com.revrobotics.ColorMatch;
 import com.revrobotics.ColorMatchResult;
 import com.revrobotics.ColorSensorV3;
+
+import edu.wpi.cscore.UsbCamera;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -85,6 +88,7 @@ public class Robot extends TimedRobot {
 	boolean gearShift;
 	boolean resetButton1;
 	boolean resetButton2;
+	boolean pulseSwiffer;
 	int POVMotorSwitch;
 	//temp buttons for testing purposes only
 	boolean SwifferPistonButton;
@@ -118,6 +122,9 @@ public class Robot extends TimedRobot {
 
 	// This function is called once at the beginning during operator control
 	public void robotInit() {
+
+		CameraServer.getInstance().startAutomaticCapture();
+
 
 		try {
             ahrs = new AHRS(SPI.Port.kMXP); 
@@ -407,8 +414,7 @@ public class Robot extends TimedRobot {
 
   // The teleop section
   	public void teleopInit() {
-		autoTimer.stop();
-		autoTimer.reset();
+		autoTimer.start();
 		FRMotor.set(0);
 		BRMotor.set(0);
 		FLMotor.set(0);
@@ -449,7 +455,8 @@ public class Robot extends TimedRobot {
 		CollectionPistonButton = joyL.getRawButton(8);
 		AngleAdjustmentButton = joyL.getRawButton(9);
 		POVMotorSwitch = joyL.getPOV();
-		
+		pulseSwiffer = joyE.getRawButtonPressed(9);
+
 		//DriveTrain
 		FRMotor.set(LeftVal);
 		BRMotor.set(LeftVal);
@@ -485,7 +492,9 @@ public class Robot extends TimedRobot {
 		//Ground Collection
 		if(groundCollection) {
 			CollectionDoor.set(DoubleSolenoid.Value.kForward);
-			SwifferPiston.set(DoubleSolenoid.Value.kForward);
+			if (autoTimer.get() > 0.75) {
+				SwifferPiston.set(DoubleSolenoid.Value.kForward);
+			}
 			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 			SwifferMotor.set(-0.4);
 			BeltMotor.set(0.45);
@@ -520,6 +529,14 @@ public class Robot extends TimedRobot {
 			BeltMotor.set(-1);
 			SwifferMotor.set(1);
 			System.out.println("Ejecting balls from collector");
+		}
+
+		//pulse the darn thingy
+		if (pulseSwiffer) {
+			autoTimer.reset();
+			if (autoTimer.get() < 0.75) {
+				SwifferPiston.set(DoubleSolenoid.Value.kReverse);
+			}
 		}
 
 
