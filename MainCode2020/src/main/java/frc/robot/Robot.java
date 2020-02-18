@@ -118,6 +118,8 @@ public class Robot extends TimedRobot {
 	double rawGyroVal = 0;
 	double processedGyroVal = 0;
 	boolean Rejoined = false;
+	boolean hasDoorFullyOpened = false;
+	boolean isSwifferPulsing = false;
 
 
 	// This function is called once at the beginning during operator control
@@ -414,7 +416,6 @@ public class Robot extends TimedRobot {
 
   // The teleop section
   	public void teleopInit() {
-		autoTimer.start();
 		FRMotor.set(0);
 		BRMotor.set(0);
 		FLMotor.set(0);
@@ -499,6 +500,7 @@ public class Robot extends TimedRobot {
 			SwifferMotor.set(-0.4);
 			BeltMotor.set(0.45);
 			System.out.println("Collecting from ground");
+			hasDoorFullyOpened = false;
 		}
 
 		//Human player station collection
@@ -512,13 +514,24 @@ public class Robot extends TimedRobot {
 		}
 
 		//Ball shooter
-		if(ballShooter) {
+		if (ballShooter) {
+			autoTimer.start();
+			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
+			if (autoTimer.get() > 1) {
+				hasDoorFullyOpened = true;
+			}
+		}
+		if(ballShooter && hasDoorFullyOpened) {
 			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
 			BeltMotor.set(1);
 			SwifferMotor.set(-.5);
 			System.out.println("Lobbing the balls from the cannon thingy");
+		}
+		if (autoTimer.get()>1 && !ballShooter && !isSwifferPulsing) {
+			autoTimer.reset();
+			autoTimer.reset();
 		}
 
 		//Ball eject
@@ -529,16 +542,23 @@ public class Robot extends TimedRobot {
 			BeltMotor.set(-1);
 			SwifferMotor.set(1);
 			System.out.println("Ejecting balls from collector");
+			hasDoorFullyOpened = false;
 		}
 
 		//pulse the darn thingy
 		if (pulseSwiffer) {
 			autoTimer.reset();
+			autoTimer.start();
 			if (autoTimer.get() < 0.75) {
 				SwifferPiston.set(DoubleSolenoid.Value.kReverse);
+				isSwifferPulsing = true;
+			}
+			if (autoTimer.get() > 0.75) {
+				isSwifferPulsing = false;
+				autoTimer.stop();
+				autoTimer.reset();
 			}
 		}
-
 
 		//Turn the motors off if nothing is pressed
 		if(!groundCollection && !stationCollection && !ballShooter && !eject) {
