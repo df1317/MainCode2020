@@ -416,6 +416,7 @@ public class Robot extends TimedRobot {
 
   // The teleop section
   	public void teleopInit() {
+		autoTimer.reset();
 		autoTimer.start();
 		FRMotor.set(0);
 		BRMotor.set(0);
