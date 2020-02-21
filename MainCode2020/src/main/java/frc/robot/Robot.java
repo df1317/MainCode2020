@@ -5,10 +5,13 @@ package frc.robot;
 //the importer was giving me trouble so I manually changed the current language to java and the project year to 2020 in the wpilib_preferences.json
 //Seems like we're doing a secondary pnuematic control module, in theory, as long as it shows up on the phoenix tuner, then it can be assigned to any id.
 //speaking of id's, I'm going to need to investigate the sparks, as they do not seem to have the device ID's in the code.
-//current autotime needs to be adjusted in auto (autoTimer.get appears to actually get deltatime, which is weird but whatevs)
 //auto at 50% speed for 2 seconds is about 103 inches
 //auto at 30% speed for 2 seconds is about 53 inches
-
+//alliance station wall is 10ft away from the starting line (120 inches)
+//maybe don't back up from wall(M0), unless other team members are also doing the low goal and are delaying their stuff such that we don't run into each other, I don't see a point.
+//have the door face the alliance wall for all auto methods
+//current auto scoring estimations assume that we are going to be starting with our back bumper just barely on the line, which I don't think would count properly, but I haven't---
+//---cont. worked out exactly where we'll be starting
 
 //imports
 import java.lang.reflect.Method;
@@ -128,6 +131,7 @@ public class Robot extends TimedRobot {
 	boolean Rejoined = false;
 	boolean hasDoorFullyOpened = false;
 	boolean isSwifferPulsing = false;
+	boolean A50percentSpeed = false;
 
 
 	// This function is called once at the beginning during operator control
@@ -171,6 +175,10 @@ public class Robot extends TimedRobot {
   	public void autonomousInit() {
 		autoTimer.reset();
 		autoTimer.start();
+		CollectionDoor.set(DoubleSolenoid.Value.kForward);
+		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
+		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
+
 	}
 
   	public void autonomousPeriodic() {
@@ -180,10 +188,16 @@ public class Robot extends TimedRobot {
 		//currentAutoTime = autoTimer.get();
 		//GearShift.set(DoubleSolenoid.Value.kForward);
 		//rawGyroVal = ahrs.getRawGyroY();
+		if (A50percentSpeed) {
+			FRMotor.set(0.5);
+			BRMotor.set(0.5);
+			FLMotor.set(-0.5);
+			BLMotor.set(-0.5);
+		}
 		
 		//Move Forward a bit
 		if (SelectedAction.equals("1")) {
-   		 	if (currentAutoTime<2) {
+   		 	if (currentAutoTime<1.5) {
 				//Drive Forward
 				FRMotor.set(-0.3);
 				BRMotor.set(-0.3);
@@ -199,7 +213,7 @@ public class Robot extends TimedRobot {
 			}
 		}
 		//do nothing
-		if (SelectedAction == "2") {
+		if (SelectedAction.equals("2")) {
 			//literally don't do anything at all
 			//GearShift.set(DoubleSolenoid.Value.kReverse);
 			FRMotor.set(0);
@@ -208,53 +222,44 @@ public class Robot extends TimedRobot {
 			BLMotor.set(0);
 		}
 		//this is da big'un, da scorin'
-		if (SelectedAction == "3") {
+		if (SelectedAction.equals("3")) {
 			//Left Position
-			if (SelectedPosition == "1" && Rejoined == false) {
+			if (SelectedPosition.equals("1") && !Rejoined) {
 				if (currentAutoTime<1.5) {
-					//turn 180 degrees to face the opposite direction
-					FRMotor.set(0.5);
-					BRMotor.set(0.5);
-					FLMotor.set(-0.5);
-					BLMotor.set(-0.5);
-				} 
-				if (currentAutoTime>1.5) {
 					//hand it over to method 0
 					AutoDiverge = true;
 					Rejoined = true;
 				}
 			}
 			//Middle or Right Positions (both start by doing the same thing)
-			if (SelectedPosition == "2" || SelectedPosition == "3" && Rejoined == false) {
-				if (currentAutoTime<1) {
-					//move forward a bit
+			if (SelectedPosition.equals("2") || SelectedPosition.equals("3") && !Rejoined) {
+				if (currentAutoTime<1.25) {
+					//back up a bit
+					//goal is 50-ish inches
+					A50percentSpeed = true;
+				}
+				if (currentAutoTime>1.5 && currentAutoTime<3) {
+					//turn 90 degrees to the counterclockwise
+					A50percentSpeed = false;
 					FRMotor.set(0.5);
 					BRMotor.set(0.5);
 					FLMotor.set(0.5);
 					BLMotor.set(0.5);
-				}
-				if (currentAutoTime>1.5 && currentAutoTime<3) {
-					//turn 90 degrees to the counterclockwise
-					FRMotor.set(0.5);
-					BRMotor.set(0.5);
-					FLMotor.set(-0.5);
-					BLMotor.set(-0.5);
 				} else {
 					//hand it over to the other two methods
 					AutoDiverge = true;
 				}
 			}
 			//Middle Position after driving forward and turning
-			if (SelectedPosition == "2" && AutoDiverge && Rejoined == false) {
-				if (currentAutoTime>3.5 && currentAutoTime<5.5) {
+			if (SelectedPosition.equals("2") && AutoDiverge && !Rejoined) {
+				if (currentAutoTime>3.5 && currentAutoTime<5) {
 					//drive forward
-					FRMotor.set(0.5);
-					BRMotor.set(0.5);
-					FLMotor.set(0.5);
-					BLMotor.set(0.5);
+					//goal is 60 (ish) inches
+					A50percentSpeed = true;
 				}
 				if (currentAutoTime>6 && currentAutoTime<7.5) {
 					//turn 90 degrees to the counterclockwise
+					A50percentSpeed = false;
 					FRMotor.set(0.5);
 					BRMotor.set(0.5);
 					FLMotor.set(-0.5);
@@ -266,22 +271,21 @@ public class Robot extends TimedRobot {
 				}
 			}
 			//Left Position after driving forward and turning
-			if (SelectedPosition == "3" && AutoDiverge && Rejoined == false) {
-				if (currentAutoTime>3.5 && currentAutoTime<6.5) {
+			if (SelectedPosition.equals("3") && AutoDiverge && !Rejoined) {
+				if (currentAutoTime>3 && currentAutoTime<5.5) {
 					//drive forward
-					FRMotor.set(0.5);
-					BRMotor.set(0.5);
-					FLMotor.set(0.5);
-					BLMotor.set(0.5);
+					//goal is just under 130 inches (ish)
+					A50percentSpeed = true;
 				}
-				if (currentAutoTime>7 && currentAutoTime<8.5) {
-					//turn 90 degrees to the counterclockwise
+				if (currentAutoTime>6 && currentAutoTime<7.5) {
+					//turn 90 degrees such that the door is facing the scoring thingy
+					A50percentSpeed = false;
 					FRMotor.set(0.5);
 					BRMotor.set(0.5);
 					FLMotor.set(-0.5);
 					BLMotor.set(-0.5);
 				}
-				if (currentAutoTime>8.5) {
+				if (currentAutoTime>8) {
 					//hand it over to method 0
 					Rejoined = true;
 				}
@@ -290,111 +294,64 @@ public class Robot extends TimedRobot {
 			if (Rejoined == true) {
 				//reset timer
 				if (AutoDiverge == true) {
+					autoTimer.reset();
 					currentAutoTime = 0;
 					AutoDiverge = false;
 				}
-				if (currentAutoTime<2.5) {
-					//drive forward to the wall
-					FRMotor.set(0.25);
-					BRMotor.set(0.25);
-					FLMotor.set(0.25);
-					BLMotor.set(0.25);
+				//drive forward to the wall
+				//goal is 70 inches
+				if (currentAutoTime<1.5) {
+					A50percentSpeed = true;
 				}
-				if (currentAutoTime>3 && currentAutoTime<6) {
-					//assume that we're about against the wall and fire the cannon
-					FRMotor.set(0);
-					BRMotor.set(0);
-					FLMotor.set(0);
-					BLMotor.set(0);
+				//extra movement if we start on the left side
+				//goal is 50 inches
+				if (currentAutoTime>1.5 && currentAutoTime<2.5 && SelectedPosition.equals("1")) {
+					A50percentSpeed = false;
+					FRMotor.set(0.4);
+					BRMotor.set(0.4);
+					FLMotor.set(-0.4);
+					BLMotor.set(-0.4);
+				}
+				//actuate pistons
+				if (currentAutoTime>1.5 && currentAutoTime<2) {
+					CollectionDoor.set(DoubleSolenoid.Value.kReverse);
+					AngleAdjustment.set(DoubleSolenoid.Value.kForward);
+					if (!SelectedPosition.equals("1")) {
+						A50percentSpeed = false;
+						FRMotor.set(0);
+						BRMotor.set(0);
+						BLMotor.set(0);
+						FLMotor.set(0);
+					}
+				}
+				//assume that we're about against the wall and fire the cannon
+				if (currentAutoTime>3 && currentAutoTime<4) {
 					BeltMotor.set(1);					
 				}
-				if (currentAutoTime>6.5) {
-					//back up away from the wall
-					FRMotor.set(-0.25);
-					BRMotor.set(-0.25);
-					FLMotor.set(-0.25);
-					BLMotor.set(-0.25);
+				//back up away from the wall
+				if (currentAutoTime>4.5 && currentAutoTime<6) {
+					BeltMotor.set(0);					
+					FRMotor.set(-0.3);
+					BRMotor.set(-0.3);
+					FLMotor.set(0.3);
+					BLMotor.set(0.3);
 				}
 			}
 		}
-		//Boogie
-		if (SelectedAction == "4") {
-			if (SelectedPosition == "1") {
-				FRMotor.set(1);
-				BRMotor.set(1);
-				FLMotor.set(-1);
-				BLMotor.set(-1);
-			}
-			if (SelectedPosition == "3") {
-				FRMotor.set(-1);
-				BRMotor.set(-1);
-				FLMotor.set(1);
-				BLMotor.set(1);
-			}
-			if (SelectedPosition == "2") {
-				if (currentAutoTime < 8) {
-					FRMotor.set(1);
-					BRMotor.set(1);
-					FLMotor.set(-1);
-					BLMotor.set(-1);
-				} else {
-					FRMotor.set(-1);
-					BRMotor.set(-1);
-					FLMotor.set(1);
-					BLMotor.set(1);
-				}
-			}
-		}
-		//back up to the wall-ish
-		if (SelectedAction == "5") {
-			if (currentAutoTime < 4)
-			FRMotor.set(-0.25);
-			BRMotor.set(-0.25);
-			FLMotor.set(-0.25);
-			BLMotor.set(-0.25);
-		}
-		//move at 50% speed for 3 seconds
-		if (SelectedAction == "6") {
-			if (currentAutoTime < 3) {
+
+		//turn using timing
+		if (SelectedAction.equals("7")) {
+			if (currentAutoTime < 1.5) {
+				//main goal is to get the proper percentage, time adjustments should be made if necessary
 				FRMotor.set(0.5);
 				BRMotor.set(0.5);
 				FLMotor.set(0.5);
 				BLMotor.set(0.5);
 			}
 		}
-		//turn using timing
-		if (SelectedAction == "7") {
-			if (currentAutoTime < 1.5) {
-				//main goal is to get the proper percentage, time adjustments should be made if necessary
-				FRMotor.set(-0.5);
-				BRMotor.set(-0.5);
-				FLMotor.set(0.5);
-				BLMotor.set(0.5);
-			}
-		}
-		//turn using ahrs.getPitch()
-		if (SelectedAction == "8") {
-			if (currentAutoTime < 1.5) {
-				//I'm assuming pitch is the correct one, if not then try roll, definitely not yaw
-				//two degrees of difference shouldn't be anything crazy at all
-				//the direction of the motors may be inverted, in which case, it'll just spin around a bunch
-				//also, I don't know if the default value is zero or not, if not, I'm going to have to make a a separate thing to calculate it so that I can zero it out
-				if (ahrs.getPitch() > 92) {
-					FRMotor.set(-0.5);
-					BRMotor.set(-0.5);
-					FLMotor.set(0.5);
-					BLMotor.set(0.5);
-				}
-				if (ahrs.getPitch() < 88) {
-					FRMotor.set(-0.5);
-					BRMotor.set(-0.5);
-					FLMotor.set(0.5);
-					BLMotor.set(0.5);
-				}
-			}
-		}
+
 		//turn using processedGyroVal
-		if (SelectedAction == "9") {
+		if (SelectedAction.equals("9")) {
 			if (currentAutoTime < 1.5) {
 				if (processedGyroVal > 92) {
 					FRMotor.set(-0.5);
@@ -419,7 +376,7 @@ public class Robot extends TimedRobot {
 		//currentAutoTime = deltaTime + currentAutoTime;
 	}
 
-  // The teleop section
+	//The teleop section
   	public void teleopInit() {
 		autoTimer.stop();
 		hasDoorFullyOpened = false;
