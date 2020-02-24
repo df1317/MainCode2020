@@ -3,8 +3,6 @@ package frc.robot;
 
 //Notes section
 //the importer was giving me trouble so I manually changed the current language to java and the project year to 2020 in the wpilib_preferences.json
-//Seems like we're doing a secondary pnuematic control module, in theory, as long as it shows up on the phoenix tuner, then it can be assigned to any id.
-//speaking of id's, I'm going to need to investigate the sparks, as they do not seem to have the device ID's in the code.
 //auto at 50% speed for 2 seconds is about 103 inches
 //auto at 30% speed for 2 seconds is about 53 inches
 //alliance station wall is 10ft away from the starting line (120 inches)
@@ -12,6 +10,7 @@ package frc.robot;
 //have the door face the alliance wall for all auto methods
 //current auto scoring estimations assume that we are going to be starting with our back bumper just barely on the line, which I don't think would count properly, but I haven't---
 //---cont. worked out exactly where we'll be starting
+//all the sparks seem to work fine
 
 //imports
 import java.lang.reflect.Method;
@@ -53,15 +52,14 @@ public class Robot extends TimedRobot {
 	WPI_VictorSPX Winch = new WPI_VictorSPX(1);
 	WPI_VictorSPX SwifferMotor = new WPI_VictorSPX(4);
 	WPI_VictorSPX BeltMotor = new WPI_VictorSPX(3);
-	//unknown motor may end up as a secondary climb motor, but this is unlikely
 	WPI_VictorSPX UnknownMotor = new WPI_VictorSPX(2);
-	Spark Hook1 = new Spark(9);
-	Spark ColorMotor = new Spark(10);
 	DoubleSolenoid SwifferPiston = new DoubleSolenoid(4, 5);
 	DoubleSolenoid GearShift = new DoubleSolenoid(6, 7);
 	DoubleSolenoid CollectionDoor = new DoubleSolenoid(2, 3);
 	DoubleSolenoid AngleAdjustment = new DoubleSolenoid(0, 1);
-	//DoubleSolenoid ColorWheelPiston = new DoubleSolenoid(11, 0, 1);
+	DoubleSolenoid ColorWheelPiston = new DoubleSolenoid(9, 0, 1);
+	Spark Hook1 = new Spark(0);
+	Spark ColorMotor = new Spark(1);
 	Compressor compressor;
 	I2C.Port i2cPort = I2C.Port.kOnboard;
 	ColorSensorV3 colorSensor = new ColorSensorV3(i2cPort);
@@ -98,7 +96,6 @@ public class Robot extends TimedRobot {
 	boolean resetButton1;
 	boolean resetButton2;
 	boolean pulseSwiffer;
-	int POVMotorSwitch;
 	boolean SwifferPistonButton;
 	boolean CollectionPistonButton;
 	boolean AngleAdjustmentButton;
@@ -112,11 +109,10 @@ public class Robot extends TimedRobot {
 	int fieldColor = 0;
 	int endgameTargetColor;
 	int halfRotation = 0;
-	boolean endRotation;
+	boolean endRotation = false;
 	boolean allRotationsDone = false;
 	String gameData;
 	Timer autoTimer = new Timer();
-	double endgameClimbAngle;
 	SendableChooser Position = new SendableChooser<>();
 	SendableChooser Action = new SendableChooser<>();
 	boolean AutoDiverge = false;
@@ -157,12 +153,7 @@ public class Robot extends TimedRobot {
 		Action.addOption("Move during auto (5pts)", 1);
 		Action.addOption("Do nothing (0pts)", 2);
 		Action.addOption("Score (up to 11pts)", 3);
-		Action.addOption("Boogie (0pts)", 4);
-		Action.addOption("Reverse to the Wall (5pts)", 5);
-		Action.addOption("Debugging 50% speed for 3 seconds", 6);
-		Action.addOption("Debugging 90 degree-ish turn over 1.5 seconds", 7);
-		Action.addOption("Debugging 90 degree turn but I use getPitch()", 8);
-		Action.addOption("Debugging 90 degree turn but I use processedGyroVal", 9);
+		Action.addOption("Debugging 90 degree-ish turn over 1.5 seconds", 4);
 		Action.setDefaultOption("Move during auto (5pts)", 1);
 		SmartDashboard.putData("Where we droppin' bois", Action);
 	}
@@ -185,9 +176,8 @@ public class Robot extends TimedRobot {
 		//lil' bit of setup code before the main event
 		SelectedAction = Action.getSelected().toString();
 		SelectedPosition = Position.getSelected().toString();
-		//currentAutoTime = autoTimer.get();
-		//GearShift.set(DoubleSolenoid.Value.kForward);
-		//rawGyroVal = ahrs.getRawGyroY();
+		currentAutoTime = autoTimer.get();
+		SmartDashboard.putNumber("Current Auto Time", currentAutoTime);
 		if (A50percentSpeed) {
 			FRMotor.set(0.5);
 			BRMotor.set(0.5);
@@ -340,7 +330,7 @@ public class Robot extends TimedRobot {
 		}
 
 		//turn using timing
-		if (SelectedAction.equals("7")) {
+		if (SelectedAction.equals("4")) {
 			if (currentAutoTime < 1.5) {
 				//main goal is to get the proper percentage, time adjustments should be made if necessary
 				FRMotor.set(0.5);
@@ -349,31 +339,6 @@ public class Robot extends TimedRobot {
 				BLMotor.set(0.5);
 			}
 		}
-
-		//turn using processedGyroVal
-		if (SelectedAction.equals("9")) {
-			if (currentAutoTime < 1.5) {
-				if (processedGyroVal > 92) {
-					FRMotor.set(-0.5);
-					BRMotor.set(-0.5);
-					FLMotor.set(0.5);
-					BLMotor.set(0.5);
-				}
-				if (processedGyroVal < 88) {
-					FRMotor.set(-0.5);
-					BRMotor.set(-0.5);
-					FLMotor.set(0.5);
-					BLMotor.set(0.5);
-				}
-			}
-		}
-		//deltaTime stuff (MUST BE AT BOTTOM OF AUTO)
-		currentAutoTime = autoTimer.get();
-		SmartDashboard.putNumber("deltaTime", deltaTime);
-		System.out.println(deltaTime);
-		processedGyroVal = rawGyroVal * deltaTime;
-		SmartDashboard.putNumber("AUTOTImer", currentAutoTime);
-		//currentAutoTime = deltaTime + currentAutoTime;
 	}
 
 	//The teleop section
@@ -394,7 +359,7 @@ public class Robot extends TimedRobot {
 		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		GearShift.set(DoubleSolenoid.Value.kReverse);
-		//ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
+		ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
 		directionalShiftToggle = false;
 		gearShiftToggle = false;
 	  }
@@ -419,12 +384,8 @@ public class Robot extends TimedRobot {
 		resetButton1 = joyE.getRawButton(7);
 		resetButton2 = joyE.getRawButton(8);
 		CollectionPistonButton = joyE.getRawButton(10);
-		POVMotorSwitch = joyL.getPOV();
 		pulseSwiffer = joyE.getRawButton(9);
 
-		if (directionalShift) {
-			directionalShiftToggle = !directionalShiftToggle;
-		}
 		SmartDashboard.putBoolean("Directional Shift Toggle", directionalShiftToggle);
 		SmartDashboard.putBoolean("Gear Shift", gearShiftToggle);
 
@@ -441,20 +402,16 @@ public class Robot extends TimedRobot {
 			FLMotor.set(LeftVal);
 			BLMotor.set(LeftVal);
 		}
+		if (directionalShift) {
+			directionalShiftToggle = !directionalShiftToggle;
+		}
 
 		//Climbing
-		if (POVhook == 0 && winchControl) {
-			Winch.set(1);
+		if (winchControl) {
+			Winch.set(ExtraVal);
 		}
-		if (POVhook == 180 && winchControl) {
-			Winch.set(-0.5);
-		}
-
-		if (POVhook == 0 && HookControl) {
-			Hook1.set(1);
-		}
-		if (POVhook == 180 && HookControl) {
-			Hook1.set(-1);
+		if (HookControl) {
+			Hook1.set(ExtraVal);
 		}
 		if(!winchControl && !HookControl) {
 			Winch.set(0);
@@ -464,14 +421,26 @@ public class Robot extends TimedRobot {
 		//Ground Collection
 		if(groundCollection) {
 			CollectionDoor.set(DoubleSolenoid.Value.kForward);
-			//if (!isSwifferPulsing) {
+			if (!isSwifferPulsing) {
 				SwifferPiston.set(DoubleSolenoid.Value.kForward);
-			//}
+			}
 			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 			SwifferMotor.set(-0.4);
 			BeltMotor.set(0.45);
 			System.out.println("Collecting from ground");
 			hasDoorFullyOpened = false;
+		}
+		if (pulseSwiffer) {
+			autoTimer.start();
+			if (currentAutoTime < 0.75) {
+				SwifferPiston.set(DoubleSolenoid.Value.kReverse);
+				isSwifferPulsing = true;
+			}
+			if (currentAutoTime > 0.75) {
+				isSwifferPulsing = false;
+				autoTimer.stop();
+				//autoTimer.reset();
+			}
 		}
 
 		if (CollectionPistonButton) {
@@ -490,9 +459,6 @@ public class Robot extends TimedRobot {
 			SwifferMotor.set(-0.7);
 			System.out.println("Collecting from the human player station");
 		}
-
-		SmartDashboard.putBoolean("hasdoorfullyopened", hasDoorFullyOpened);
-		SmartDashboard.putNumber("autoTimer", currentAutoTime);
 
 		//Ball shooter
 		if (ballShooter && !hasDoorFullyOpened) {
@@ -529,21 +495,6 @@ public class Robot extends TimedRobot {
 			hasDoorFullyOpened = false;
 		}
 
-		//pulse the darn thingy
-		//investigate this, by all means, it shouldn't work at all
-		if (pulseSwiffer) {
-			autoTimer.start();
-			if (currentAutoTime < 0.75) {
-				SwifferPiston.set(DoubleSolenoid.Value.kReverse);
-				isSwifferPulsing = true;
-			}
-			if (currentAutoTime > 0.75) {
-				isSwifferPulsing = false;
-				autoTimer.stop();
-				//autoTimer.reset();
-			}
-		}
-
 		//Turn the motors off if nothing is pressed
 		if(!groundCollection && !stationCollection && !ballShooter && !eject) {
 			SwifferMotor.set(0);
@@ -568,20 +519,6 @@ public class Robot extends TimedRobot {
 			hasDoorFullyOpened = false;
 		}
 
-		//temp buttons for debuggin'
-		/*if (AngleAdjustmentButton) {
-			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
-		}
-		if (SwifferPistonButton) {
-			SwifferPiston.set(DoubleSolenoid.Value.kForward);
-		}
-		if (CollectionPistonButton) {
-			CollectionDoor.set(DoubleSolenoid.Value.kForward);
-		}
-		if (joyL.getRawButton(11)) {
-			GearShift.set(DoubleSolenoid.Value.kForward);
-		}*/
-
 		//shift the gears
 		if (gearShift) {
 			gearShiftToggle = !gearShiftToggle;
@@ -593,7 +530,7 @@ public class Robot extends TimedRobot {
 			GearShift.set(DoubleSolenoid.Value.kReverse);
 		}
 	
-		//Classic endgame question of "what color do we need to get again???"
+		//Classic endgame color
 		gameData = DriverStation.getInstance().getGameSpecificMessage();
 		if(gameData.length() > 0) {
 			switch (gameData.charAt(0))
@@ -613,6 +550,8 @@ public class Robot extends TimedRobot {
 		
 		//Color Sensor functions
 		if (colorRotations || colorEndgame) {
+			SmartDashboard.putNumber("Confidence", match.confidence);
+			SmartDashboard.putString("Detected Color", colorString);	
 			currentColor = colorSensor.getColor();
 			match = m_colorMatcher.matchClosestColor(currentColor);
 			if (match.color == kGreenTarget) {
@@ -639,29 +578,27 @@ public class Robot extends TimedRobot {
 		if (fieldColor == 1 && endRotation) {
 			halfRotation = halfRotation + 1;
 			endRotation = false;
-		}	
-    	//SmartDashboard.putNumber("Confidence", match.confidence);
-		//SmartDashboard.putString("Detected Color", colorString);		
+		}		
 
 		//Normal Color wheel functions
 		if (halfRotation == 7) {
 			allRotationsDone = true;
 		}
 		if (colorRotations && !allRotationsDone) {
-			//ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
+			ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
 			ColorMotor.set(ColorMotorVal);
 		}
 
 		//endgame stuffs
 		if(colorEndgame && endgameTargetColor!=fieldColor){
 			ColorMotor.set(ColorMotorVal);
-			//ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
+			ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
 		}
 
 		//turning the motors off and putting the piston into reverse if buttons are not pressed
 		if (!colorEndgame && !colorRotations) {
 			ColorMotor.set(0);
-			//ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
+			ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
 		}
 	}
 }
