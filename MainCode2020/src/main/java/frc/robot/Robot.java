@@ -11,6 +11,7 @@ package frc.robot;
 //current auto scoring estimations assume that we are going to be starting with our back bumper just barely on the line, which I don't think would count properly, but I haven't---
 //---cont. worked out exactly where we'll be starting
 //all the sparks seem to work fine
+//examine the possibility of running the auto code with some extra smartdashboard data integrated to be certain that everything is progressing how I intend
 
 //imports
 import java.lang.reflect.Method;
@@ -83,6 +84,7 @@ public class Robot extends TimedRobot {
 	double RightVal;
 	double LeftVal;
 	double ExtraVal;
+	double AutoBeltVal;
 	boolean groundCollection;
 	boolean ballShooter;
 	boolean eject;
@@ -128,6 +130,7 @@ public class Robot extends TimedRobot {
 	boolean hasDoorFullyOpened = false;
 	boolean isSwifferPulsing = false;
 	boolean A50percentSpeed = false;
+	boolean AutoPistonPosition;
 
 
 	// This function is called once at the beginning during operator control
@@ -169,47 +172,61 @@ public class Robot extends TimedRobot {
 		CollectionDoor.set(DoubleSolenoid.Value.kForward);
 		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
-
+		RightVal = 0;
+		LeftVal = 0;
+		AutoBeltVal = 0;
+		AutoPistonPosition = false;
 	}
 
   	public void autonomousPeriodic() {
+		FRMotor.set(-RightVal);
+		BRMotor.set(-RightVal);
+		FLMotor.set(LeftVal);
+		BLMotor.set(LeftVal);
+		BeltMotor.set(AutoBeltVal);
 		//lil' bit of setup code before the main event
 		SelectedAction = Action.getSelected().toString();
 		SelectedPosition = Position.getSelected().toString();
 		currentAutoTime = autoTimer.get();
 		SmartDashboard.putNumber("Current Auto Time", currentAutoTime);
+		SmartDashboard.putNumber("RightVal", RightVal);
+		SmartDashboard.putNumber("LeftVal", LeftVal);
+		SmartDashboard.putNumber("AutoBeltVal", AutoBeltVal);
+
+		//back the robot up at 50% speed if true
 		if (A50percentSpeed) {
-			FRMotor.set(0.5);
-			BRMotor.set(0.5);
-			FLMotor.set(-0.5);
-			BLMotor.set(-0.5);
+			RightVal = -0.5;
+			LeftVal = -0.5;
+		}
+
+		//Put the pistons in the right position if true
+		if (AutoPistonPosition) {
+			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
+			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
+		} else {
+			CollectionDoor.set(DoubleSolenoid.Value.kForward);
+			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		}
 		
 		//Move Forward a bit
 		if (SelectedAction.equals("1")) {
    		 	if (currentAutoTime<1.5) {
 				//Drive Forward
-				FRMotor.set(-0.3);
-				BRMotor.set(-0.3);
-				FLMotor.set(0.3);
-				BLMotor.set(0.3);
+				RightVal = 0.3;
+				LeftVal = 0.3;
     		} else {
 				//Stop Driving forward and revert to default gearshift setting
       			//GearShift.set(DoubleSolenoid.Value.kReverse);
-      			FRMotor.set(0);
-    	  		BRMotor.set(0);
-	      		FLMotor.set(0);
-      			BLMotor.set(0);
+				  RightVal = 0;
+				  LeftVal = 0;
 			}
 		}
 		//do nothing
 		if (SelectedAction.equals("2")) {
 			//literally don't do anything at all
 			//GearShift.set(DoubleSolenoid.Value.kReverse);
-			FRMotor.set(0);
-			BRMotor.set(0);
-			FLMotor.set(0);
-			BLMotor.set(0);
+			RightVal = 0;
+			LeftVal = 0;
 		}
 		//this is da big'un, da scorin'
 		if (SelectedAction.equals("3")) {
@@ -231,10 +248,8 @@ public class Robot extends TimedRobot {
 				if (currentAutoTime>1.5 && currentAutoTime<3) {
 					//turn 90 degrees to the counterclockwise
 					A50percentSpeed = false;
-					FRMotor.set(0.5);
-					BRMotor.set(0.5);
-					FLMotor.set(0.5);
-					BLMotor.set(0.5);
+					RightVal = 0.5;
+					LeftVal = -0.5;
 				} else {
 					//hand it over to the other two methods
 					AutoDiverge = true;
@@ -248,12 +263,10 @@ public class Robot extends TimedRobot {
 					A50percentSpeed = true;
 				}
 				if (currentAutoTime>6 && currentAutoTime<7.5) {
-					//turn 90 degrees to the counterclockwise
+					//turn 90 degrees clockwise
 					A50percentSpeed = false;
-					FRMotor.set(0.5);
-					BRMotor.set(0.5);
-					FLMotor.set(-0.5);
-					BLMotor.set(-0.5);
+					RightVal = -0.5;
+					LeftVal = 0.5;
 				}
 				if (currentAutoTime>7.5) {
 					//hand it over to method 0
@@ -268,12 +281,10 @@ public class Robot extends TimedRobot {
 					A50percentSpeed = true;
 				}
 				if (currentAutoTime>6 && currentAutoTime<7.5) {
-					//turn 90 degrees such that the door is facing the scoring thingy
+					//turn 90 degrees counterclockwise
 					A50percentSpeed = false;
-					FRMotor.set(0.5);
-					BRMotor.set(0.5);
-					FLMotor.set(-0.5);
-					BLMotor.set(-0.5);
+					RightVal = 0.5;
+					LeftVal = -0.5;
 				}
 				if (currentAutoTime>8) {
 					//hand it over to method 0
@@ -290,41 +301,40 @@ public class Robot extends TimedRobot {
 				}
 				//drive forward to the wall
 				//goal is 70 inches
-				if (currentAutoTime<1.5) {
+				//changed from 1.5 seconds to just 1 second to account for the fact that we're not going to start on the edge of the line but rather about the middle
+				if (currentAutoTime<1) {
 					A50percentSpeed = true;
 				}
 				//extra movement if we start on the left side
 				//goal is 50 inches
-				if (currentAutoTime>1.5 && currentAutoTime<2.5 && SelectedPosition.equals("1")) {
+				if (currentAutoTime>1 && currentAutoTime<2 && SelectedPosition.equals("1")) {
 					A50percentSpeed = false;
-					FRMotor.set(0.4);
-					BRMotor.set(0.4);
-					FLMotor.set(-0.4);
-					BLMotor.set(-0.4);
+					RightVal = -0.4;
+					LeftVal = -0.4;
 				}
 				//actuate pistons
-				if (currentAutoTime>1.5 && currentAutoTime<2) {
-					CollectionDoor.set(DoubleSolenoid.Value.kReverse);
-					AngleAdjustment.set(DoubleSolenoid.Value.kForward);
+				if (currentAutoTime>1 && currentAutoTime<3) {
+					AutoPistonPosition = true;
 					if (!SelectedPosition.equals("1")) {
 						A50percentSpeed = false;
-						FRMotor.set(0);
-						BRMotor.set(0);
-						BLMotor.set(0);
-						FLMotor.set(0);
+						RightVal = 0;
+						LeftVal = 0;
+					}
+					if (!SelectedPosition.equals("1") && currentAutoTime > 2) {
+						RightVal = 0;
+						LeftVal = 0;
 					}
 				}
 				//assume that we're about against the wall and fire the cannon
-				if (currentAutoTime>3 && currentAutoTime<4) {
-					BeltMotor.set(1);					
+				if (currentAutoTime>3 && currentAutoTime<4.5) {
+					AutoBeltVal = 1;
 				}
 				//back up away from the wall
 				if (currentAutoTime>4.5 && currentAutoTime<6) {
-					BeltMotor.set(0);					
-					FRMotor.set(-0.3);
-					BRMotor.set(-0.3);
-					FLMotor.set(0.3);
-					BLMotor.set(0.3);
+					AutoPistonPosition = false;
+					AutoBeltVal = 1;
+					RightVal = 0.3;
+					LeftVal = 0.3;
 				}
 			}
 		}
@@ -333,10 +343,8 @@ public class Robot extends TimedRobot {
 		if (SelectedAction.equals("4")) {
 			if (currentAutoTime < 1.5) {
 				//main goal is to get the proper percentage, time adjustments should be made if necessary
-				FRMotor.set(0.5);
-				BRMotor.set(0.5);
-				FLMotor.set(0.5);
-				BLMotor.set(0.5);
+				RightVal = -0.5;
+				LeftVal = 0.5;
 			}
 		}
 	}
@@ -346,6 +354,8 @@ public class Robot extends TimedRobot {
 		autoTimer.stop();
 		hasDoorFullyOpened = false;
 		isSwifferPulsing = false;
+		RightVal = 0;
+		LeftVal = 0;
 		FRMotor.set(0);
 		BRMotor.set(0);
 		FLMotor.set(0);
@@ -550,7 +560,6 @@ public class Robot extends TimedRobot {
 		
 		//Color Sensor functions
 		if (colorRotations || colorEndgame) {
-			SmartDashboard.putNumber("Confidence", match.confidence);
 			SmartDashboard.putString("Detected Color", colorString);	
 			currentColor = colorSensor.getColor();
 			match = m_colorMatcher.matchClosestColor(currentColor);
