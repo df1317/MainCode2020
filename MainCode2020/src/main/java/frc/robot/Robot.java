@@ -12,6 +12,8 @@ package frc.robot;
 //---cont. worked out exactly where we'll be starting
 //all the sparks seem to work fine
 //examine the possibility of running the auto code with some extra smartdashboard data integrated to be certain that everything is progressing how I intend
+//auto is configured in such a way that I could disable some functions at the top of auto periodic and come away with a method of doing auto without running anything at all
+//forget the whole rejoined thingy, just have 3 different bits of code that all do the same thing so that I don't have to deal with the whole rejoined
 
 //imports
 import java.lang.reflect.Method;
@@ -54,11 +56,11 @@ public class Robot extends TimedRobot {
 	WPI_VictorSPX SwifferMotor = new WPI_VictorSPX(4);
 	WPI_VictorSPX BeltMotor = new WPI_VictorSPX(3);
 	WPI_VictorSPX UnknownMotor = new WPI_VictorSPX(2);
-	DoubleSolenoid SwifferPiston = new DoubleSolenoid(4, 5);
+	DoubleSolenoid SwifferPiston = new DoubleSolenoid(5, 4);
 	DoubleSolenoid GearShift = new DoubleSolenoid(6, 7);
 	DoubleSolenoid CollectionDoor = new DoubleSolenoid(2, 3);
 	DoubleSolenoid AngleAdjustment = new DoubleSolenoid(0, 1);
-	DoubleSolenoid ColorWheelPiston = new DoubleSolenoid(9, 0, 1);
+	//DoubleSolenoid ColorWheelPiston = new DoubleSolenoid(9, 0, 1);
 	Spark Hook1 = new Spark(0);
 	Spark ColorMotor = new Spark(1);
 	Compressor compressor;
@@ -131,6 +133,7 @@ public class Robot extends TimedRobot {
 	boolean isSwifferPulsing = false;
 	boolean A50percentSpeed = false;
 	boolean AutoPistonPosition;
+	double CATsubtractionAmount = 0;
 
 
 	// This function is called once at the beginning during operator control
@@ -176,22 +179,25 @@ public class Robot extends TimedRobot {
 		LeftVal = 0;
 		AutoBeltVal = 0;
 		AutoPistonPosition = false;
+		Rejoined = false;
+		CATsubtractionAmount = 0;
 	}
 
   	public void autonomousPeriodic() {
-		FRMotor.set(-RightVal);
-		BRMotor.set(-RightVal);
-		FLMotor.set(LeftVal);
-		BLMotor.set(LeftVal);
-		BeltMotor.set(AutoBeltVal);
+		//FRMotor.set(-RightVal);
+		//BRMotor.set(-RightVal);
+		//FLMotor.set(LeftVal);
+		//BLMotor.set(LeftVal);
+		//BeltMotor.set(AutoBeltVal);
 		//lil' bit of setup code before the main event
 		SelectedAction = Action.getSelected().toString();
 		SelectedPosition = Position.getSelected().toString();
-		currentAutoTime = autoTimer.get();
+		currentAutoTime = autoTimer.get() - CATsubtractionAmount;
 		SmartDashboard.putNumber("Current Auto Time", currentAutoTime);
 		SmartDashboard.putNumber("RightVal", RightVal);
 		SmartDashboard.putNumber("LeftVal", LeftVal);
 		SmartDashboard.putNumber("AutoBeltVal", AutoBeltVal);
+		SmartDashboard.putBoolean("piston thingy", AutoPistonPosition);
 
 		//back the robot up at 50% speed if true
 		if (A50percentSpeed) {
@@ -200,14 +206,30 @@ public class Robot extends TimedRobot {
 		}
 
 		//Put the pistons in the right position if true
-		if (AutoPistonPosition) {
+		/*if (AutoPistonPosition) {
 			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
 		} else {
 			CollectionDoor.set(DoubleSolenoid.Value.kForward);
 			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
+		} */
+
+		//the effect of resetting the timer without actually having to reset it at all (thus probably causing problems)
+		if (SelectedPosition.equals("1") && Rejoined) {
+			CATsubtractionAmount = 0;
+		}
+		if (SelectedPosition.equals("2") && Rejoined) {
+			CATsubtractionAmount = 7.5;
+		}
+		if (SelectedPosition.equals("3") && Rejoined) {
+			CATsubtractionAmount = 8;
 		}
 		
+		//|-------------------------------------------------|
+		//|---------- EXITING THE AUTO SETUP AREA ----------|
+		//|----------     PRIMARY CODE AHEAD	  ----------|
+		//|-------------------------------------------------|
+
 		//Move Forward a bit
 		if (SelectedAction.equals("1")) {
    		 	if (currentAutoTime<1.5) {
@@ -221,6 +243,7 @@ public class Robot extends TimedRobot {
 				  LeftVal = 0;
 			}
 		}
+
 		//do nothing
 		if (SelectedAction.equals("2")) {
 			//literally don't do anything at all
@@ -228,19 +251,17 @@ public class Robot extends TimedRobot {
 			RightVal = 0;
 			LeftVal = 0;
 		}
+
 		//this is da big'un, da scorin'
 		if (SelectedAction.equals("3")) {
 			//Left Position
-			if (SelectedPosition.equals("1") && !Rejoined) {
-				if (currentAutoTime<1.5) {
-					//hand it over to method 0
-					AutoDiverge = true;
-					Rejoined = true;
-				}
+			if (SelectedPosition.equals("1")) {
+				Rejoined = true;
 			}
+
 			//Middle or Right Positions (both start by doing the same thing)
-			if (SelectedPosition.equals("2") || SelectedPosition.equals("3") && !Rejoined) {
-				if (currentAutoTime<1.25) {
+			if (SelectedPosition.equals("2") || SelectedPosition.equals("3") && !Rejoined && !AutoDiverge){
+				if (currentAutoTime<1.5) {
 					//back up a bit
 					//goal is 50-ish inches
 					A50percentSpeed = true;
@@ -255,6 +276,7 @@ public class Robot extends TimedRobot {
 					AutoDiverge = true;
 				}
 			}
+
 			//Middle Position after driving forward and turning
 			if (SelectedPosition.equals("2") && AutoDiverge && !Rejoined) {
 				if (currentAutoTime>3.5 && currentAutoTime<5) {
@@ -273,6 +295,7 @@ public class Robot extends TimedRobot {
 					Rejoined = true;
 				}
 			}
+
 			//Left Position after driving forward and turning
 			if (SelectedPosition.equals("3") && AutoDiverge && !Rejoined) {
 				if (currentAutoTime>3 && currentAutoTime<5.5) {
@@ -292,13 +315,7 @@ public class Robot extends TimedRobot {
 				}
 			}
 			//Rejoins all previous parts of the program into one piece
-			if (Rejoined == true) {
-				//reset timer
-				if (AutoDiverge == true) {
-					autoTimer.reset();
-					currentAutoTime = 0;
-					AutoDiverge = false;
-				}
+			if (Rejoined == true || SelectedPosition.equals("1")) {
 				//drive forward to the wall
 				//goal is 70 inches
 				//changed from 1.5 seconds to just 1 second to account for the fact that we're not going to start on the edge of the line but rather about the middle
@@ -320,7 +337,7 @@ public class Robot extends TimedRobot {
 						RightVal = 0;
 						LeftVal = 0;
 					}
-					if (!SelectedPosition.equals("1") && currentAutoTime > 2) {
+					if (SelectedPosition.equals("1") && currentAutoTime > 2) {
 						RightVal = 0;
 						LeftVal = 0;
 					}
@@ -332,7 +349,7 @@ public class Robot extends TimedRobot {
 				//back up away from the wall
 				if (currentAutoTime>4.5 && currentAutoTime<6) {
 					AutoPistonPosition = false;
-					AutoBeltVal = 1;
+					AutoBeltVal = 0;
 					RightVal = 0.3;
 					LeftVal = 0.3;
 				}
@@ -369,7 +386,7 @@ public class Robot extends TimedRobot {
 		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		GearShift.set(DoubleSolenoid.Value.kReverse);
-		ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
+		//ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
 		directionalShiftToggle = false;
 		gearShiftToggle = false;
 	  }
@@ -441,16 +458,10 @@ public class Robot extends TimedRobot {
 			hasDoorFullyOpened = false;
 		}
 		if (pulseSwiffer) {
-			autoTimer.start();
-			if (currentAutoTime < 0.75) {
-				SwifferPiston.set(DoubleSolenoid.Value.kReverse);
-				isSwifferPulsing = true;
-			}
-			if (currentAutoTime > 0.75) {
-				isSwifferPulsing = false;
-				autoTimer.stop();
-				//autoTimer.reset();
-			}
+			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
+			isSwifferPulsing = true;
+		} else {
+			isSwifferPulsing = false;
 		}
 
 		if (CollectionPistonButton) {
@@ -476,6 +487,7 @@ public class Robot extends TimedRobot {
 				CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 			}
 			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
+			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 			autoTimer.start();
 			if (currentAutoTime > 0.5) {
 				hasDoorFullyOpened = true;
@@ -594,20 +606,20 @@ public class Robot extends TimedRobot {
 			allRotationsDone = true;
 		}
 		if (colorRotations && !allRotationsDone) {
-			ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
+			//ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
 			ColorMotor.set(ColorMotorVal);
 		}
 
 		//endgame stuffs
 		if(colorEndgame && endgameTargetColor!=fieldColor){
 			ColorMotor.set(ColorMotorVal);
-			ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
+			//ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
 		}
 
 		//turning the motors off and putting the piston into reverse if buttons are not pressed
 		if (!colorEndgame && !colorRotations) {
 			ColorMotor.set(0);
-			ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
+			//ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
 		}
 	}
 }
