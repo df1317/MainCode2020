@@ -60,23 +60,10 @@ public class Robot extends TimedRobot {
 	DoubleSolenoid GearShift = new DoubleSolenoid(6, 7);
 	DoubleSolenoid CollectionDoor = new DoubleSolenoid(2, 3);
 	DoubleSolenoid AngleAdjustment = new DoubleSolenoid(0, 1);
-	//DoubleSolenoid ColorWheelPiston = new DoubleSolenoid(9, 0, 1);
+	DoubleSolenoid ColorPiston = new DoubleSolenoid(9, 0, 1);
 	Spark Hook1 = new Spark(0);
 	Spark ColorMotor = new Spark(1);
 	Compressor compressor;
-	I2C.Port i2cPort = I2C.Port.kOnboard;
-	ColorSensorV3 colorSensor = new ColorSensorV3(i2cPort);
-	AHRS ahrs;
-
-	//Color Sensor Declaration/Values
-	final Color kBlueTarget = ColorMatch.makeColor(0.143, 0.427, 0.429);
-	final Color kGreenTarget = ColorMatch.makeColor(0.197, 0.561, 0.240);
-	final Color kRedTarget = ColorMatch.makeColor(0.561, 0.232, 0.114);
-  	final Color kYellowTarget = ColorMatch.makeColor(0.361, 0.524, 0.113);
-	ColorMatch m_colorMatcher = new ColorMatch();
-	ColorMatchResult match;
-	Color currentColor;
-	String colorString;
 
 	//Joystick declarations
 	Joystick joyE = new Joystick(0);
@@ -94,8 +81,8 @@ public class Robot extends TimedRobot {
 	boolean HookControl;
 	int POVhook;
 	boolean stationCollection;
-	boolean colorRotations;
-	boolean colorEndgame;
+	boolean colorRotations1;
+	boolean colorRotations2;
 	boolean gearShift;
 	boolean resetButton1;
 	boolean resetButton2;
@@ -108,13 +95,8 @@ public class Robot extends TimedRobot {
 	boolean gearShiftToggle;
 
 	//Additional Values
-	double ColorMotorVal = 0.5;
-	int color = 0;
-	int fieldColor = 0;
+	double ColorMotorVal;
 	int endgameTargetColor;
-	int halfRotation = 0;
-	boolean endRotation = false;
-	boolean allRotationsDone = false;
 	String gameData;
 	Timer autoTimer = new Timer();
 	SendableChooser Position = new SendableChooser<>();
@@ -139,16 +121,6 @@ public class Robot extends TimedRobot {
 	// This function is called once at the beginning during operator control
 	public void robotInit() {
 		CameraServer.getInstance().startAutomaticCapture();
-
-		try {
-            ahrs = new AHRS(SPI.Port.kMXP); 
-        } catch (RuntimeException ex ) {
-            DriverStation.reportError("Error instantiating navX MXP:  " + ex.getMessage(), true);
-		}
-		m_colorMatcher.addColorMatch(kBlueTarget);
-		m_colorMatcher.addColorMatch(kGreenTarget);
-		m_colorMatcher.addColorMatch(kRedTarget);
-		m_colorMatcher.addColorMatch(kYellowTarget);
 
 		//Selected the auto options
 		Position.addOption("Left", 1);
@@ -175,6 +147,7 @@ public class Robot extends TimedRobot {
 		CollectionDoor.set(DoubleSolenoid.Value.kForward);
 		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
+		ColorPiston.set(DoubleSolenoid.Value.kReverse);
 		RightVal = 0;
 		LeftVal = 0;
 		AutoBeltVal = 0;
@@ -386,7 +359,7 @@ public class Robot extends TimedRobot {
 		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		GearShift.set(DoubleSolenoid.Value.kReverse);
-		//ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
+		ColorPiston.set(DoubleSolenoid.Value.kReverse);
 		directionalShiftToggle = false;
 		gearShiftToggle = false;
 	  }
@@ -405,8 +378,8 @@ public class Robot extends TimedRobot {
 		HookControl = joyE.getRawButton(12);
 		POVhook = joyE.getPOV();
 		stationCollection = joyE.getRawButton(3);
-		colorRotations = joyE.getRawButton(4);
-		colorEndgame = joyE.getRawButton(6);
+		colorRotations1 = joyE.getRawButton(4);
+		colorRotations2 = joyE.getRawButton(6);
 		gearShift = joyR.getRawButtonPressed(1);
 		resetButton1 = joyE.getRawButton(7);
 		resetButton2 = joyE.getRawButton(8);
@@ -525,10 +498,7 @@ public class Robot extends TimedRobot {
 		
 		//Reset the color wheel values
 		if (resetButton1) {
-			allRotationsDone = false;
-			halfRotation = 0;
-			endRotation = false;
-			System.out.println("Color wheel stuff reset to default values");
+			//currently empty, but I'm sure there'll be something
 		}
 
 		//Sets robot to smallest configuration
@@ -570,56 +540,19 @@ public class Robot extends TimedRobot {
 			}
 		}
 		
-		//Color Sensor functions
-		if (colorRotations || colorEndgame) {
-			SmartDashboard.putString("Detected Color", colorString);	
-			currentColor = colorSensor.getColor();
-			match = m_colorMatcher.matchClosestColor(currentColor);
-			if (match.color == kGreenTarget) {
-				colorString = "Green";
-				color = 2;
-				endRotation = true;
-			} else if (match.color == kYellowTarget) {
-				colorString = "Yellow";
-				color = 4;
-			} else if (match.color == kBlueTarget) {
-				colorString = "Blue";
-				color = 3;
-			} else if (match.color == kRedTarget) {
-				colorString = "Red";
-				color = 1;
-			} else {
-				colorString = "Unknown";
-				color = 0;
-				fieldColor = 0;
-			}
+		//Color Motor stuffs
+		if (colorRotations2) {
+			ColorMotor.set(-0.5);
+			ColorPiston.set(DoubleSolenoid.Value.kForward);
 		}
-
-		if(color != 0) fieldColor = (color+2)%4;
-		if (fieldColor == 1 && endRotation) {
-			halfRotation = halfRotation + 1;
-			endRotation = false;
-		}		
-
-		//Normal Color wheel functions
-		if (halfRotation == 7) {
-			allRotationsDone = true;
+		if (colorRotations1) {
+			ColorMotor.set(1);
+			ColorPiston.set(DoubleSolenoid.Value.kForward);
 		}
-		if (colorRotations && !allRotationsDone) {
-			//ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
-			ColorMotor.set(ColorMotorVal);
-		}
-
-		//endgame stuffs
-		if(colorEndgame && endgameTargetColor!=fieldColor){
-			ColorMotor.set(ColorMotorVal);
-			//ColorWheelPiston.set(DoubleSolenoid.Value.kForward);
-		}
-
-		//turning the motors off and putting the piston into reverse if buttons are not pressed
-		if (!colorEndgame && !colorRotations) {
+		if (!colorRotations2 && !colorRotations1) {
 			ColorMotor.set(0);
-			//ColorWheelPiston.set(DoubleSolenoid.Value.kReverse);
+			ColorPiston.set(DoubleSolenoid.Value.kReverse);
 		}
+		SmartDashboard.putNumber("Target Color", endgameTargetColor);
 	}
 }
