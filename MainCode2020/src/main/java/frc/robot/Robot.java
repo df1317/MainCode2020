@@ -6,14 +6,7 @@ package frc.robot;
 //auto at 50% speed for 2 seconds is about 103 inches
 //auto at 30% speed for 2 seconds is about 53 inches
 //alliance station wall is 10ft away from the starting line (120 inches)
-//maybe don't back up from wall(M0), unless other team members are also doing the low goal and are delaying their stuff such that we don't run into each other, I don't see a point.
-//have the door face the alliance wall for all auto methods
-//current auto scoring estimations assume that we are going to be starting with our back bumper just barely on the line, which I don't think would count properly, but I haven't---
-//---cont. worked out exactly where we'll be starting
-//all the sparks seem to work fine
-//examine the possibility of running the auto code with some extra smartdashboard data integrated to be certain that everything is progressing how I intend
-//auto is configured in such a way that I could disable some functions at the top of auto periodic and come away with a method of doing auto without running anything at all
-//forget the whole rejoined thingy, just have 3 different bits of code that all do the same thing so that I don't have to deal with the whole rejoined
+//perhaps eject will not open the piston for the siffer so as to have a method of moving the balls down the conveyor belt
 
 //imports
 import java.lang.reflect.Method;
@@ -52,17 +45,15 @@ public class Robot extends TimedRobot {
 	WPI_VictorSPX BRMotor = new WPI_VictorSPX(6);
 	WPI_VictorSPX FLMotor = new WPI_VictorSPX(7);
 	WPI_VictorSPX BLMotor = new WPI_VictorSPX(8);
-	WPI_VictorSPX Winch = new WPI_VictorSPX(1);
+	WPI_VictorSPX Winch = new WPI_VictorSPX(2);
 	WPI_VictorSPX SwifferMotor = new WPI_VictorSPX(4);
 	WPI_VictorSPX BeltMotor = new WPI_VictorSPX(3);
-	WPI_VictorSPX UnknownMotor = new WPI_VictorSPX(2);
 	DoubleSolenoid SwifferPiston = new DoubleSolenoid(5, 4);
 	DoubleSolenoid GearShift = new DoubleSolenoid(6, 7);
 	DoubleSolenoid CollectionDoor = new DoubleSolenoid(2, 3);
 	DoubleSolenoid AngleAdjustment = new DoubleSolenoid(0, 1);
-	DoubleSolenoid ColorPiston = new DoubleSolenoid(9, 0, 1);
+	//DoubleSolenoid ColorPiston = new DoubleSolenoid(9, 0, 1);
 	Spark Hook1 = new Spark(0);
-	Spark ColorMotor = new Spark(1);
 	Compressor compressor;
 
 	//Joystick declarations
@@ -147,7 +138,7 @@ public class Robot extends TimedRobot {
 		CollectionDoor.set(DoubleSolenoid.Value.kForward);
 		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
-		ColorPiston.set(DoubleSolenoid.Value.kReverse);
+		//ColorPiston.set(DoubleSolenoid.Value.kReverse);
 		RightVal = 0;
 		LeftVal = 0;
 		AutoBeltVal = 0;
@@ -157,12 +148,12 @@ public class Robot extends TimedRobot {
 	}
 
   	public void autonomousPeriodic() {
-		//FRMotor.set(-RightVal);
-		//BRMotor.set(-RightVal);
-		//FLMotor.set(LeftVal);
-		//BLMotor.set(LeftVal);
-		//BeltMotor.set(AutoBeltVal);
 		//lil' bit of setup code before the main event
+		FRMotor.set(-RightVal);
+		BRMotor.set(-RightVal);
+		FLMotor.set(LeftVal);
+		BLMotor.set(LeftVal);
+		BeltMotor.set(AutoBeltVal);
 		SelectedAction = Action.getSelected().toString();
 		SelectedPosition = Position.getSelected().toString();
 		currentAutoTime = autoTimer.get() - CATsubtractionAmount;
@@ -174,18 +165,18 @@ public class Robot extends TimedRobot {
 
 		//back the robot up at 50% speed if true
 		if (A50percentSpeed) {
-			RightVal = -0.5;
+			RightVal = -0.45;
 			LeftVal = -0.5;
 		}
 
 		//Put the pistons in the right position if true
-		/*if (AutoPistonPosition) {
+		if (AutoPistonPosition) {
 			CollectionDoor.set(DoubleSolenoid.Value.kReverse);
 			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
 		} else {
 			CollectionDoor.set(DoubleSolenoid.Value.kForward);
 			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
-		} */
+		} 
 
 		//the effect of resetting the timer without actually having to reset it at all (thus probably causing problems)
 		if (SelectedPosition.equals("1") && Rejoined) {
@@ -297,10 +288,8 @@ public class Robot extends TimedRobot {
 				}
 				//extra movement if we start on the left side
 				//goal is 50 inches
-				if (currentAutoTime>1 && currentAutoTime<2 && SelectedPosition.equals("1")) {
-					A50percentSpeed = false;
-					RightVal = -0.4;
-					LeftVal = -0.4;
+				if (currentAutoTime>0 && currentAutoTime<2 && SelectedPosition.equals("1")) {
+					A50percentSpeed = true;
 				}
 				//actuate pistons
 				if (currentAutoTime>1 && currentAutoTime<3) {
@@ -310,7 +299,8 @@ public class Robot extends TimedRobot {
 						RightVal = 0;
 						LeftVal = 0;
 					}
-					if (SelectedPosition.equals("1") && currentAutoTime > 2) {
+					if (SelectedPosition.equals("1") && currentAutoTime > 2.5) {
+						A50percentSpeed = false;
 						RightVal = 0;
 						LeftVal = 0;
 					}
@@ -319,22 +309,33 @@ public class Robot extends TimedRobot {
 				if (currentAutoTime>3 && currentAutoTime<4.5) {
 					AutoBeltVal = 1;
 				}
+				if (currentAutoTime> 4.5) {
+					AutoBeltVal = 0;
+				}
 				//back up away from the wall
 				if (currentAutoTime>4.5 && currentAutoTime<6) {
 					AutoPistonPosition = false;
 					AutoBeltVal = 0;
-					RightVal = 0.3;
-					LeftVal = 0.3;
+					RightVal = 0.45;
+					LeftVal = 0.5;
+				}
+				if (currentAutoTime > 7.5) {
+					RightVal = 0;
+					LeftVal = 0;
 				}
 			}
 		}
 
 		//turn using timing
 		if (SelectedAction.equals("4")) {
-			if (currentAutoTime < 1.5) {
+			if (currentAutoTime < 1.0 && currentAutoTime > 0.0) {
 				//main goal is to get the proper percentage, time adjustments should be made if necessary
-				RightVal = -0.5;
-				LeftVal = 0.5;
+				RightVal = -0.55;
+				LeftVal = 0.55;
+			}
+			if (currentAutoTime >1) {
+				RightVal = 0;
+				LeftVal = 0;
 			}
 		}
 	}
@@ -352,14 +353,13 @@ public class Robot extends TimedRobot {
 		BLMotor.set(0);
 		BeltMotor.set(0);
 		SwifferMotor.set(0);
-		ColorMotor.set(0);
 		Winch.set(0);
 		Hook1.set(0);
 		CollectionDoor.set(DoubleSolenoid.Value.kForward);
 		SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 		AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 		GearShift.set(DoubleSolenoid.Value.kReverse);
-		ColorPiston.set(DoubleSolenoid.Value.kReverse);
+		//ColorPiston.set(DoubleSolenoid.Value.kReverse);
 		directionalShiftToggle = false;
 		gearShiftToggle = false;
 	  }
@@ -411,7 +411,7 @@ public class Robot extends TimedRobot {
 			Winch.set(ExtraVal);
 		}
 		if (HookControl) {
-			Hook1.set(ExtraVal);
+			Hook1.set(-ExtraVal);
 		}
 		if(!winchControl && !HookControl) {
 			Winch.set(0);
@@ -482,11 +482,7 @@ public class Robot extends TimedRobot {
 
 		//Ball eject
 		if(eject) {
-			CollectionDoor.set(DoubleSolenoid.Value.kForward);
-			SwifferPiston.set(DoubleSolenoid.Value.kForward);
-			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
-			BeltMotor.set(-1);
-			SwifferMotor.set(1);
+			BeltMotor.set(-0.5);
 			hasDoorFullyOpened = false;
 		}
 
@@ -542,16 +538,16 @@ public class Robot extends TimedRobot {
 		
 		//Color Motor stuffs
 		if (colorRotations2) {
-			ColorMotor.set(-0.5);
-			ColorPiston.set(DoubleSolenoid.Value.kForward);
+			//ColorMotor.set(-0.5);
+			//ColorPiston.set(DoubleSolenoid.Value.kForward);
 		}
 		if (colorRotations1) {
-			ColorMotor.set(1);
-			ColorPiston.set(DoubleSolenoid.Value.kForward);
+			//ColorMotor.set(1);
+			//ColorPiston.set(DoubleSolenoid.Value.kForward);
 		}
 		if (!colorRotations2 && !colorRotations1) {
-			ColorMotor.set(0);
-			ColorPiston.set(DoubleSolenoid.Value.kReverse);
+			//ColorMotor.set(0);
+			//ColorPiston.set(DoubleSolenoid.Value.kReverse);
 		}
 		SmartDashboard.putNumber("Target Color", endgameTargetColor);
 	}
