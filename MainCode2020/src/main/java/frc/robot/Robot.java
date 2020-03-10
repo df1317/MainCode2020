@@ -84,6 +84,9 @@ public class Robot extends TimedRobot {
 	boolean directionalShift;
 	boolean directionalShiftToggle;
 	boolean gearShiftToggle;
+	boolean speedLimiter = false;
+	boolean speedLimiterToggle = false;
+	double speedLimitAmount = 1;
 
 	//Additional Values
 	double ColorMotorVal;
@@ -365,8 +368,10 @@ public class Robot extends TimedRobot {
 		//get joystick values and buttons and such
 		currentAutoTime = autoTimer.get() + currentAutoTime;
 		directionalShift = joyL.getRawButtonPressed(1);
-		RightVal = joyR.getY();
-		LeftVal = joyL.getY();
+		//R&L Val multiplied by speedLimitAmount to add a form of speed reduction without adding too much code and keeping the effectiveness of directional toggle,
+		//cont. might work, might not, idk
+		RightVal = joyR.getY()*speedLimitAmount;
+		LeftVal = joyL.getY()*speedLimitAmount;
 		ExtraVal = joyE.getY();
 		groundCollection = joyE.getRawButton(2);
 		ballShooter = joyE.getRawButton(1);
@@ -382,9 +387,11 @@ public class Robot extends TimedRobot {
 		resetButton2 = joyE.getRawButton(8);
 		CollectionPistonButton = joyE.getRawButton(10);
 		pulseSwiffer = joyE.getRawButton(9);
+		speedLimiter = joyR.getRawButtonPressed(12);
 
 		SmartDashboard.putBoolean("Directional Shift Toggle", directionalShiftToggle);
 		SmartDashboard.putBoolean("Gear Shift", gearShiftToggle);
+		SmartDashboard.putBoolean("SpeedLimiter", speedLimiter);
 
 		//DriveTrain
 		if (!directionalShiftToggle) {
@@ -401,6 +408,14 @@ public class Robot extends TimedRobot {
 		}
 		if (directionalShift) {
 			directionalShiftToggle = !directionalShiftToggle;
+		}
+		if (speedLimiter) {
+			speedLimiterToggle = !speedLimiterToggle;
+		}
+		if (speedLimiterToggle) {
+			speedLimitAmount = 0.3;
+		} else {
+			speedLimitAmount = 1;
 		}
 
 		//Climbing
