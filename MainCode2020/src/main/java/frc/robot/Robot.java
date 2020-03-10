@@ -90,7 +90,7 @@ public class Robot extends TimedRobot {
 	int endgameTargetColor;
 	String gameData;
 	Timer autoTimer = new Timer();
-	SendableChooser Position = new SendableChooser<>();
+	//SendableChooser Position = new SendableChooser<>();
 	SendableChooser Action = new SendableChooser<>();
 	boolean AutoDiverge = false;
 	String SelectedMotor = "nothing";
@@ -114,17 +114,14 @@ public class Robot extends TimedRobot {
 		CameraServer.getInstance().startAutomaticCapture();
 
 		//Selected the auto options
-		Position.addOption("Left", 1);
+		/*Position.addOption("Left", 1);
 		Position.addOption("Middle", 2);
 		Position.addOption("Right", 3);
-		Position.setDefaultOption("Left", 1);
-		SmartDashboard.putData("Starting Position", Position);
-		Action.addOption("Move during auto (5pts)", 1);
-		Action.addOption("Do nothing (0pts)", 2);
-		Action.addOption("Score (up to 11pts)", 3);
-		Action.addOption("Debugging 90 degree-ish turn over 1.5 seconds", 4);
-		Action.setDefaultOption("Move during auto (5pts)", 1);
-		SmartDashboard.putData("Where we droppin' bois", Action);
+		SmartDashboard.putData("Starting Position", Position);*/
+		Action.addOption("Move forward", 1);
+		Action.addOption("Do nothing", 2);
+		Action.addOption("Score", 3);
+		SmartDashboard.putData("Action", Action);
 	}
 
 	//public void robotPeriodic() {
@@ -155,7 +152,7 @@ public class Robot extends TimedRobot {
 		BLMotor.set(LeftVal);
 		BeltMotor.set(AutoBeltVal);
 		SelectedAction = Action.getSelected().toString();
-		SelectedPosition = Position.getSelected().toString();
+		SelectedPosition = "1";
 		currentAutoTime = autoTimer.get() - CATsubtractionAmount;
 		SmartDashboard.putNumber("Current Auto Time", currentAutoTime);
 		SmartDashboard.putNumber("RightVal", RightVal);
@@ -165,7 +162,7 @@ public class Robot extends TimedRobot {
 
 		//back the robot up at 50% speed if true
 		if (A50percentSpeed) {
-			RightVal = -0.45;
+			RightVal = -0.5;
 			LeftVal = -0.5;
 		}
 
@@ -233,8 +230,8 @@ public class Robot extends TimedRobot {
 				if (currentAutoTime>1.5 && currentAutoTime<3) {
 					//turn 90 degrees to the counterclockwise
 					A50percentSpeed = false;
-					RightVal = 0.5;
-					LeftVal = -0.5;
+					RightVal = 0.55;
+					LeftVal = -0.55;
 				} else {
 					//hand it over to the other two methods
 					AutoDiverge = true;
@@ -251,8 +248,8 @@ public class Robot extends TimedRobot {
 				if (currentAutoTime>6 && currentAutoTime<7.5) {
 					//turn 90 degrees clockwise
 					A50percentSpeed = false;
-					RightVal = -0.5;
-					LeftVal = 0.5;
+					RightVal = -0.55;
+					LeftVal = 0.55;
 				}
 				if (currentAutoTime>7.5) {
 					//hand it over to method 0
@@ -270,8 +267,8 @@ public class Robot extends TimedRobot {
 				if (currentAutoTime>6 && currentAutoTime<7.5) {
 					//turn 90 degrees counterclockwise
 					A50percentSpeed = false;
-					RightVal = 0.5;
-					LeftVal = -0.5;
+					RightVal = 0.55;
+					LeftVal = -0.55;
 				}
 				if (currentAutoTime>8) {
 					//hand it over to method 0
@@ -313,13 +310,13 @@ public class Robot extends TimedRobot {
 					AutoBeltVal = 0;
 				}
 				//back up away from the wall
-				if (currentAutoTime>4.5 && currentAutoTime<6) {
+				if (currentAutoTime>4.5 && currentAutoTime<6.5) {
 					AutoPistonPosition = false;
 					AutoBeltVal = 0;
-					RightVal = 0.45;
+					RightVal = 0.5;
 					LeftVal = 0.5;
 				}
-				if (currentAutoTime > 7.5) {
+				if (currentAutoTime > 8) {
 					RightVal = 0;
 					LeftVal = 0;
 				}
@@ -426,7 +423,7 @@ public class Robot extends TimedRobot {
 			}
 			AngleAdjustment.set(DoubleSolenoid.Value.kReverse);
 			SwifferMotor.set(-0.4);
-			BeltMotor.set(0.45);
+			BeltMotor.set(0.2);
 			System.out.println("Collecting from ground");
 			hasDoorFullyOpened = false;
 		}
@@ -449,7 +446,7 @@ public class Robot extends TimedRobot {
 			}
 			SwifferPiston.set(DoubleSolenoid.Value.kReverse);
 			AngleAdjustment.set(DoubleSolenoid.Value.kForward);
-			BeltMotor.set(-0.50);
+			BeltMotor.set(-0.5);
 			SwifferMotor.set(-0.7);
 			System.out.println("Collecting from the human player station");
 		}
@@ -549,6 +546,5 @@ public class Robot extends TimedRobot {
 			//ColorMotor.set(0);
 			//ColorPiston.set(DoubleSolenoid.Value.kReverse);
 		}
-		SmartDashboard.putNumber("Target Color", endgameTargetColor);
 	}
 }
